@@ -1,0 +1,768 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ─────────────────────────────────────────────────────────────────────────────
+# muxtree — Tmux Worktree Session Manager
+# Create and manage git worktrees + tmux sessions for AI coding agents
+# ─────────────────────────────────────────────────────────────────────────────
+
+VERSION="1.0.0"
+CONFIG_DIR="${MUXTREE_CONFIG_DIR:-$HOME/.muxtree}"
+CONFIG_FILE="$CONFIG_DIR/config"
+
+# ── Defaults ──────────────────────────────────────────────────────────────────
+DEFAULT_WORKTREE_DIR="$HOME/worktrees"
+DEFAULT_TERMINAL="terminal"  # terminal | iterm2
+DEFAULT_COPY_FILES=""
+
+# ── Colors ────────────────────────────────────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+RESET='\033[0m'
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+info()    { echo -e "${BLUE}▸${RESET} $*"; }
+success() { echo -e "${GREEN}✓${RESET} $*"; }
+warn()    { echo -e "${YELLOW}⚠${RESET} $*"; }
+error()   { echo -e "${RED}✗${RESET} $*" >&2; }
+die()     { error "$@"; exit 1; }
+
+_parse_config() {
+    local file="$1"
+    while IFS='=' read -r key value; do
+        # Trim whitespace
+        key="$(echo "$key" | xargs)"
+        value="$(echo "$value" | xargs)"
+
+        # Reject values containing shell metacharacters
+        if [[ "$value" =~ [\`\$\;\|\&] ]] || [[ "$value" == *'$('* ]]; then
+            warn "Ignoring suspicious value for '$key' in $file"
+            continue
+        fi
+
+        case "$key" in
+            worktree_dir) WORKTREE_DIR="$value" ;;
+            terminal)     TERMINAL="$value" ;;
+            copy_files)   COPY_FILES="$value" ;;
+        esac
+    done < <(grep -E '^[a-z_]+=' "$file")
+}
+
+load_config() {
+    WORKTREE_DIR="$DEFAULT_WORKTREE_DIR"
+    TERMINAL="$DEFAULT_TERMINAL"
+    COPY_FILES="$DEFAULT_COPY_FILES"
+    ACTIVE_CONFIG="none"
+
+    # 1. Load global config as base
+    if [[ -f "$CONFIG_FILE" ]]; then
+        _parse_config "$CONFIG_FILE"
+        ACTIVE_CONFIG="global"
+    fi
+
+    # 2. Override with project-local config if inside a git repo
+    local repo_root
+    repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+    LOCAL_CONFIG_FILE="${repo_root:+$repo_root/.muxtree}"
+
+    if [[ -n "$LOCAL_CONFIG_FILE" && -f "$LOCAL_CONFIG_FILE" ]]; then
+        _parse_config "$LOCAL_CONFIG_FILE"
+        ACTIVE_CONFIG="local"
+    fi
+
+    # Expand tilde
+    WORKTREE_DIR="${WORKTREE_DIR/#\~/$HOME}"
+}
+
+ensure_git_repo() {
+    if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+        die "Not inside a git repository. Run muxtree from within your repo."
+    fi
+}
+
+get_repo_root() {
+    git rev-parse --show-toplevel
+}
+
+get_repo_name() {
+    basename "$(get_repo_root)"
+}
+
+get_main_branch() {
+    # Try to find main/master branch
+    local main_ref
+    main_ref=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || true)
+    if [[ -z "$main_ref" ]]; then
+        # Fallback: check for common names
+        for branch in main master; do
+            if git show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null; then
+                main_ref="$branch"
+                break
+            fi
+        done
+    fi
+    echo "${main_ref:-main}"
+}
+
+worktree_path() {
+    local repo_name="$1"
+    local branch="$2"
+    # Sanitize branch name for safe filesystem use (strip traversal, special chars)
+    local safe_branch="${branch//[^a-zA-Z0-9._-]/-}"
+    safe_branch="${safe_branch#-}"  # strip leading dash
+    echo "$WORKTREE_DIR/$repo_name/$safe_branch"
+}
+
+session_prefix() {
+    local repo_name="$1"
+    local branch="$2"
+    # Replace slashes and dots with dashes for tmux compatibility
+    local clean_branch="${branch//\//-}"
+    clean_branch="${clean_branch//./-}"
+    echo "${repo_name}_${clean_branch}"
+}
+
+tmux_dev_session() {
+    echo "$(session_prefix "$1" "$2")-dev"
+}
+
+tmux_claude_session() {
+    echo "$(session_prefix "$1" "$2")-claude"
+}
+
+has_tmux_session() {
+    tmux has-session -t "$1" 2>/dev/null
+}
+
+# ── Config Management ─────────────────────────────────────────────────────────
+
+cmd_init() {
+    local local_mode=false
+    [[ "${1:-}" == "--local" || "${1:-}" == "-l" ]] && local_mode=true
+
+    if $local_mode; then
+        ensure_git_repo
+        local repo_root
+        repo_root="$(get_repo_root)"
+        local target_file="$repo_root/.muxtree"
+
+        if [[ -f "$target_file" ]]; then
+            warn "Project config already exists at $target_file"
+            echo ""
+            cat "$target_file"
+            echo ""
+            read -rp "Overwrite? (y/N) " confirm
+            [[ "$confirm" =~ ^[Yy]$ ]] || return 0
+        fi
+
+        echo ""
+        info "Enter files to copy into new worktrees for this project (relative to repo root)."
+        info "Comma-separated, e.g.: .env,.env.local,CLAUDE.md"
+        read -rp "Files to copy: " input_files
+
+        cat > "$target_file" <<EOF
+# muxtree project config
+# Generated on $(date)
+
+# Files to copy from repo root into new worktrees (comma-separated, relative to repo root)
+# Supports glob patterns and directories
+copy_files=$input_files
+EOF
+
+        success "Project config written to $target_file"
+        echo ""
+        cat "$target_file"
+    else
+        if [[ -f "$CONFIG_FILE" ]]; then
+            warn "Config already exists at $CONFIG_FILE"
+            echo ""
+            cat "$CONFIG_FILE"
+            echo ""
+            read -rp "Overwrite? (y/N) " confirm
+            [[ "$confirm" =~ ^[Yy]$ ]] || return 0
+        fi
+
+        mkdir -p "$CONFIG_DIR"
+
+        echo ""
+        read -rp "Worktree base directory [$DEFAULT_WORKTREE_DIR]: " input_dir
+        local wt_dir="${input_dir:-$DEFAULT_WORKTREE_DIR}"
+
+        read -rp "Terminal app (terminal/iterm2) [$DEFAULT_TERMINAL]: " input_term
+        local term="${input_term:-$DEFAULT_TERMINAL}"
+
+        echo ""
+        info "Enter files to copy into new worktrees (relative to repo root)."
+        info "Comma-separated, e.g.: .env,.env.local,CLAUDE.md"
+        read -rp "Files to copy: " input_files
+
+        cat > "$CONFIG_FILE" <<EOF
+# muxtree configuration
+# Generated on $(date)
+
+# Base directory for worktrees
+worktree_dir=$wt_dir
+
+# Terminal app: terminal | iterm2
+terminal=$term
+
+# Files to copy from repo root into new worktrees (comma-separated, relative to repo root)
+# Supports glob patterns and directories
+copy_files=$input_files
+EOF
+
+        success "Config written to $CONFIG_FILE"
+        echo ""
+        cat "$CONFIG_FILE"
+    fi
+}
+
+cmd_config() {
+    load_config
+
+    local has_any=false
+
+    if [[ -f "$CONFIG_FILE" ]]; then
+        has_any=true
+        echo -e "${BOLD}Global config:${RESET} $CONFIG_FILE"
+        echo "─────────────────────────────────"
+        cat "$CONFIG_FILE"
+        echo ""
+    fi
+
+    if [[ -n "${LOCAL_CONFIG_FILE:-}" && -f "$LOCAL_CONFIG_FILE" ]]; then
+        has_any=true
+        echo -e "${BOLD}Project config:${RESET} $LOCAL_CONFIG_FILE ${GREEN}(active)${RESET}"
+        echo "─────────────────────────────────"
+        cat "$LOCAL_CONFIG_FILE"
+        echo ""
+    elif [[ "$has_any" == true ]]; then
+        echo -e "${DIM}No project config. Use ${RESET}${BOLD}muxtree init --local${RESET}${DIM} to create one.${RESET}"
+    fi
+
+    if ! $has_any; then
+        warn "No config found. Run ${BOLD}muxtree init${RESET} to create one."
+        return 1
+    fi
+}
+
+# ── New Worktree ──────────────────────────────────────────────────────────────
+
+cmd_new() {
+    local branch=""
+    local base_branch=""
+    local run_cmd=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --from)  base_branch="$2"; shift 2 ;;
+            --run)   run_cmd="$2"; shift 2 ;;
+            -*)      die "Unknown option: $1" ;;
+            *)       branch="$1"; shift ;;
+        esac
+    done
+
+    [[ -n "$branch" ]] || die "Usage: muxtree new <branch-name> [--from <base-branch>] [--run claude|codex]"
+
+    # Validate --run command if provided
+    if [[ -n "$run_cmd" ]]; then
+        case "$run_cmd" in
+            claude|codex) ;;
+            *) die "Invalid --run command: '$run_cmd'. Allowed: claude, codex" ;;
+        esac
+    fi
+
+    ensure_git_repo
+    load_config
+
+    local repo_root repo_name wt_path
+    repo_root="$(get_repo_root)"
+    repo_name="$(get_repo_name)"
+    base_branch="${base_branch:-$(get_main_branch)}"
+    wt_path="$(worktree_path "$repo_name" "$branch")"
+
+    if [[ -d "$wt_path" ]]; then
+        die "Worktree already exists at $wt_path"
+    fi
+
+    # 1. Create worktree with new branch
+    info "Creating worktree at ${CYAN}$wt_path${RESET}"
+    mkdir -p "$(dirname "$wt_path")"
+    git worktree add -b "$branch" "$wt_path" "$base_branch"
+    success "Worktree created (branch ${CYAN}$branch${RESET} from ${DIM}$base_branch${RESET})"
+
+    # 2. Copy config files
+    if [[ -n "$COPY_FILES" ]]; then
+        info "Copying config files..."
+        IFS=',' read -ra files <<< "$COPY_FILES"
+        for file in "${files[@]}"; do
+            file="$(echo "$file" | xargs)"  # trim whitespace
+            [[ -n "$file" ]] || continue
+
+            # Safe glob expansion with nullglob
+            local matches
+            local _old_nullglob
+            _old_nullglob=$(shopt -p nullglob || true)
+            shopt -s nullglob
+            matches=( "$repo_root"/$file )
+            eval "$_old_nullglob"
+
+            if (( ${#matches[@]} == 0 )); then
+                warn "  Not found: ${DIM}$file${RESET}"
+                continue
+            fi
+
+            for match in "${matches[@]}"; do
+                if [[ -e "$match" ]]; then
+                    local rel="${match#"$repo_root"/}"
+                    local dest="$wt_path/$rel"
+                    mkdir -p -- "$(dirname -- "$dest")"
+                    cp -a -- "$match" "$dest"
+                    success "  Copied ${DIM}$rel${RESET}"
+                fi
+            done
+        done
+    fi
+
+    # 3. Launch tmux sessions
+    _launch_sessions "$repo_name" "$branch" "$wt_path" "$run_cmd"
+
+    echo ""
+    success "Ready! Worktree: ${CYAN}$wt_path${RESET}"
+    echo -e "  Dev session:    ${BOLD}$(tmux_dev_session "$repo_name" "$branch")${RESET}"
+    echo -e "  Claude session: ${BOLD}$(tmux_claude_session "$repo_name" "$branch")${RESET}"
+}
+
+_launch_sessions() {
+    local repo_name="$1"
+    local branch="$2"
+    local wt_path="$3"
+    local run_cmd="${4:-}"
+
+    local dev_sess claude_sess
+    dev_sess="$(tmux_dev_session "$repo_name" "$branch")"
+    claude_sess="$(tmux_claude_session "$repo_name" "$branch")"
+
+    info "Creating tmux sessions..."
+
+    # Create dev session (detached)
+    tmux new-session -d -s "$dev_sess" -c "$wt_path"
+    success "  Created session ${BOLD}$dev_sess${RESET}"
+
+    # Create claude session (detached)
+    if [[ -n "$run_cmd" ]]; then
+        tmux new-session -d -s "$claude_sess" -c "$wt_path" "$run_cmd"
+    else
+        tmux new-session -d -s "$claude_sess" -c "$wt_path"
+    fi
+    success "  Created session ${BOLD}$claude_sess${RESET}"
+
+    # Open terminal windows
+    _open_terminal "$dev_sess"
+    _open_terminal "$claude_sess"
+}
+
+_open_terminal() {
+    local session="$1"
+    load_config
+
+    # Escape double quotes and backslashes for safe AppleScript embedding
+    local safe_session="${session//\\/\\\\}"
+    safe_session="${safe_session//\"/\\\"}"
+
+    case "$TERMINAL" in
+        iterm2)
+            osascript <<EOF 2>/dev/null || true
+tell application "iTerm"
+    activate
+    create window with default profile
+    tell current session of current window
+        write text "tmux attach -t ${safe_session}"
+    end tell
+end tell
+EOF
+            ;;
+        terminal|*)
+            osascript <<EOF 2>/dev/null || true
+tell application "Terminal"
+    activate
+    do script "tmux attach -t ${safe_session}"
+end tell
+EOF
+            ;;
+    esac
+}
+
+# ── List Worktrees ────────────────────────────────────────────────────────────
+
+cmd_list() {
+    ensure_git_repo
+    load_config
+
+    local repo_name
+    repo_name="$(get_repo_name)"
+    local wt_base="$WORKTREE_DIR/$repo_name"
+
+    echo -e "${BOLD}Worktrees for ${CYAN}$repo_name${RESET}"
+    echo "════════════════════════════════════════════════════════════════"
+
+    if [[ ! -d "$wt_base" ]]; then
+        info "No worktrees found. Use ${BOLD}muxtree new <branch>${RESET} to create one."
+        return 0
+    fi
+
+    local found=false
+
+    # Iterate through git worktrees and match our managed ones
+    while IFS= read -r wt_line; do
+        local wt_dir branch_name
+
+        wt_dir="$(echo "$wt_line" | awk '{print $1}')"
+        branch_name="$(echo "$wt_line" | sed -n 's/.*\[\(.*\)\].*/\1/p')"
+
+        # Skip worktrees not in our managed directory
+        [[ "$wt_dir" == "$wt_base"/* ]] || continue
+
+        found=true
+
+        local dev_sess claude_sess
+        dev_sess="$(tmux_dev_session "$repo_name" "$branch_name")"
+        claude_sess="$(tmux_claude_session "$repo_name" "$branch_name")"
+
+        # Diff stats
+        local diff_stat=""
+        if [[ -d "$wt_dir/.git" || -f "$wt_dir/.git" ]]; then
+            local insertions deletions
+            insertions=$(git -C "$wt_dir" diff --stat HEAD 2>/dev/null | tail -1 | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
+            deletions=$(git -C "$wt_dir" diff --stat HEAD 2>/dev/null | tail -1 | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
+
+            # Also count staged changes
+            local staged_ins staged_del
+            staged_ins=$(git -C "$wt_dir" diff --cached --stat HEAD 2>/dev/null | tail -1 | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
+            staged_del=$(git -C "$wt_dir" diff --cached --stat HEAD 2>/dev/null | tail -1 | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
+
+            local total_ins=$(( ${insertions:-0} + ${staged_ins:-0} ))
+            local total_del=$(( ${deletions:-0} + ${staged_del:-0} ))
+
+            diff_stat="${GREEN}+${total_ins}${RESET} ${RED}-${total_del}${RESET}"
+        fi
+
+        # Tmux session status
+        local dev_status claude_status
+        if has_tmux_session "$dev_sess"; then
+            dev_status="${GREEN}●${RESET}"
+        else
+            dev_status="${DIM}○${RESET}"
+        fi
+        if has_tmux_session "$claude_sess"; then
+            claude_status="${GREEN}●${RESET}"
+        else
+            claude_status="${DIM}○${RESET}"
+        fi
+
+        echo ""
+        echo -e "  ${BOLD}${CYAN}$branch_name${RESET}  $diff_stat"
+        echo -e "  ${DIM}$wt_dir${RESET}"
+        echo -e "  Sessions: $dev_status $dev_sess  $claude_status $claude_sess"
+
+    done < <(git worktree list)
+
+    if ! $found; then
+        info "No managed worktrees found. Use ${BOLD}muxtree new <branch>${RESET} to create one."
+    fi
+
+    echo ""
+}
+
+# ── Delete Worktree ───────────────────────────────────────────────────────────
+
+cmd_delete() {
+    local branch="$1"
+    local force=false
+
+    [[ "${2:-}" == "--force" || "${2:-}" == "-f" ]] && force=true
+    [[ -n "$branch" ]] || die "Usage: muxtree delete <branch-name> [--force]"
+
+    ensure_git_repo
+    load_config
+
+    local repo_name wt_path
+    repo_name="$(get_repo_name)"
+    wt_path="$(worktree_path "$repo_name" "$branch")"
+
+    if [[ ! -d "$wt_path" ]]; then
+        die "Worktree not found: $wt_path"
+    fi
+
+    # Show diff stats before confirming
+    local insertions deletions
+    insertions=$(git -C "$wt_path" diff --stat HEAD 2>/dev/null | tail -1 | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
+    deletions=$(git -C "$wt_path" diff --stat HEAD 2>/dev/null | tail -1 | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
+
+    echo ""
+    echo -e "  Branch:    ${BOLD}$branch${RESET}"
+    echo -e "  Path:      ${DIM}$wt_path${RESET}"
+    echo -e "  Changes:   ${GREEN}+${insertions:-0}${RESET} ${RED}-${deletions:-0}${RESET}"
+    echo ""
+
+    if ! $force; then
+        warn "This will remove the worktree and delete the local branch."
+        read -rp "Are you sure? (y/N) " confirm
+        [[ "$confirm" =~ ^[Yy]$ ]] || { info "Cancelled."; return 0; }
+    fi
+
+    # Kill tmux sessions
+    _kill_sessions "$repo_name" "$branch"
+
+    # Remove worktree
+    info "Removing worktree..."
+    git worktree remove "$wt_path" --force 2>/dev/null || {
+        warn "git worktree remove failed, cleaning up manually..."
+        rm -rf -- "$wt_path"
+        git worktree prune
+    }
+    success "Worktree removed"
+
+    # Delete the branch
+    info "Deleting branch ${CYAN}$branch${RESET}..."
+    git branch -D "$branch" 2>/dev/null && success "Branch deleted" || warn "Branch may have already been deleted"
+
+    # Clean up empty repo dir
+    local repo_dir="$WORKTREE_DIR/$repo_name"
+    if [[ -d "$repo_dir" ]]; then
+        local _old_dotglob _old_nullglob_del
+        _old_dotglob=$(shopt -p dotglob || true)
+        _old_nullglob_del=$(shopt -p nullglob || true)
+        shopt -s nullglob dotglob
+        local _dir_files=("$repo_dir"/*)
+        eval "$_old_dotglob"
+        eval "$_old_nullglob_del"
+        if (( ${#_dir_files[@]} == 0 )); then
+            rmdir -- "$repo_dir" 2>/dev/null || true
+        fi
+    fi
+
+    echo ""
+    success "Done."
+}
+
+# ── Session Management ────────────────────────────────────────────────────────
+
+cmd_sessions() {
+    local action="${1:-}"
+    local branch="${2:-}"
+    local run_cmd=""
+
+    # Parse remaining args
+    local extra_arg=""
+    shift 2 2>/dev/null || true
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --run) run_cmd="$2"; shift 2 ;;
+            -*)    shift ;;
+            *)     extra_arg="$1"; shift ;;
+        esac
+    done
+
+    case "$action" in
+        open|launch|start)
+            [[ -n "$branch" ]] || die "Usage: muxtree sessions open <branch> [--run claude|codex]"
+            if [[ -n "$run_cmd" ]]; then
+                case "$run_cmd" in
+                    claude|codex) ;;
+                    *) die "Invalid --run command: '$run_cmd'. Allowed: claude, codex" ;;
+                esac
+            fi
+            _sessions_open "$branch" "$run_cmd"
+            ;;
+        close|kill|stop)
+            [[ -n "$branch" ]] || die "Usage: muxtree sessions close <branch>"
+            _sessions_close "$branch"
+            ;;
+        relaunch|restart)
+            [[ -n "$branch" ]] || die "Usage: muxtree sessions relaunch <branch> [--run claude|codex]"
+            if [[ -n "$run_cmd" ]]; then
+                case "$run_cmd" in
+                    claude|codex) ;;
+                    *) die "Invalid --run command: '$run_cmd'. Allowed: claude, codex" ;;
+                esac
+            fi
+            _sessions_close "$branch"
+            _sessions_open "$branch" "$run_cmd"
+            ;;
+        attach)
+            [[ -n "$branch" ]] || die "Usage: muxtree sessions attach <branch> [dev|claude]"
+            _sessions_attach "$branch" "${extra_arg:-dev}"
+            ;;
+        *)
+            die "Usage: muxtree sessions <open|close|relaunch|attach> <branch> [--run claude|codex]"
+            ;;
+    esac
+}
+
+_sessions_open() {
+    local branch="$1"
+    local run_cmd="$2"
+
+    ensure_git_repo
+    load_config
+
+    local repo_name wt_path
+    repo_name="$(get_repo_name)"
+    wt_path="$(worktree_path "$repo_name" "$branch")"
+
+    [[ -d "$wt_path" ]] || die "Worktree not found: $wt_path"
+
+    local dev_sess claude_sess
+    dev_sess="$(tmux_dev_session "$repo_name" "$branch")"
+    claude_sess="$(tmux_claude_session "$repo_name" "$branch")"
+
+    # Only create sessions that don't exist
+    if has_tmux_session "$dev_sess"; then
+        warn "Session $dev_sess already exists"
+    else
+        tmux new-session -d -s "$dev_sess" -c "$wt_path"
+        success "Created session ${BOLD}$dev_sess${RESET}"
+        _open_terminal "$dev_sess"
+    fi
+
+    if has_tmux_session "$claude_sess"; then
+        warn "Session $claude_sess already exists"
+    else
+        if [[ -n "$run_cmd" ]]; then
+            tmux new-session -d -s "$claude_sess" -c "$wt_path" "$run_cmd"
+        else
+            tmux new-session -d -s "$claude_sess" -c "$wt_path"
+        fi
+        success "Created session ${BOLD}$claude_sess${RESET}"
+        _open_terminal "$claude_sess"
+    fi
+}
+
+_sessions_close() {
+    local branch="$1"
+
+    ensure_git_repo
+    load_config
+
+    local repo_name
+    repo_name="$(get_repo_name)"
+
+    _kill_sessions "$repo_name" "$branch"
+}
+
+_sessions_attach() {
+    local branch="$1"
+    local which="${2:-dev}"
+
+    ensure_git_repo
+    load_config
+
+    local repo_name sess
+    repo_name="$(get_repo_name)"
+
+    case "$which" in
+        dev)    sess="$(tmux_dev_session "$repo_name" "$branch")" ;;
+        claude) sess="$(tmux_claude_session "$repo_name" "$branch")" ;;
+        *)      die "Unknown session type: $which (use dev or claude)" ;;
+    esac
+
+    if has_tmux_session "$sess"; then
+        tmux attach -t "$sess"
+    else
+        die "Session not found: $sess"
+    fi
+}
+
+_kill_sessions() {
+    local repo_name="$1"
+    local branch="$2"
+
+    local dev_sess claude_sess
+    dev_sess="$(tmux_dev_session "$repo_name" "$branch")"
+    claude_sess="$(tmux_claude_session "$repo_name" "$branch")"
+
+    if has_tmux_session "$dev_sess"; then
+        tmux kill-session -t "$dev_sess"
+        success "Killed session ${BOLD}$dev_sess${RESET}"
+    fi
+    if has_tmux_session "$claude_sess"; then
+        tmux kill-session -t "$claude_sess"
+        success "Killed session ${BOLD}$claude_sess${RESET}"
+    fi
+}
+
+# ── Help ──────────────────────────────────────────────────────────────────────
+
+cmd_help() {
+    echo -e "
+${BOLD}muxtree${RESET} — Tmux Worktree Session Manager v$VERSION
+
+${BOLD}USAGE${RESET}
+    muxtree <command> [options]
+
+${BOLD}COMMANDS${RESET}
+    ${CYAN}init${RESET}                              Set up global config (~/.muxtree/config)
+        --local                       Create project config (.muxtree in repo root)
+    ${CYAN}config${RESET}                            Show current config (global + project)
+
+    ${CYAN}new${RESET} <branch> [options]             Create worktree + tmux sessions
+        --from <branch>               Base branch (default: main/master)
+        --run <claude|codex>          Auto-run command in claude session
+
+    ${CYAN}list${RESET}                              List worktrees, diff stats, session status
+
+    ${CYAN}delete${RESET} <branch> [--force]          Delete worktree and branch (with confirmation)
+
+    ${CYAN}sessions${RESET} <action> <branch> [opts]  Manage tmux sessions for a worktree
+        open   <branch> [--run cmd]   Create & open terminal windows
+        close  <branch>               Kill tmux sessions
+        relaunch <branch> [--run cmd] Close + reopen sessions
+        attach <branch> [dev|claude]  Attach to a session in current terminal
+
+    ${CYAN}help${RESET}                              Show this help message
+
+${BOLD}EXAMPLES${RESET}
+    muxtree init                          # Global setup
+    muxtree init --local                  # Project-specific copy_files
+    muxtree new feature-auth              # New worktree from main
+    muxtree new fix-bug --from develop    # New worktree from develop
+    muxtree new feature-ai --run claude   # Auto-launch claude code
+    muxtree list                          # Show all worktrees + status
+    muxtree sessions close feature-auth   # Kill tmux sessions
+    muxtree sessions relaunch fix-bug     # Restart sessions
+    muxtree delete feature-auth           # Remove worktree + branch
+
+${BOLD}CONFIG${RESET}
+    Global:  ~/.muxtree/config          (worktree_dir, terminal, copy_files)
+    Project: .muxtree in repo root      (overrides global settings)
+    Env:     MUXTREE_CONFIG_DIR=/path    (override global config dir)
+"
+}
+
+# ── Main Dispatch ─────────────────────────────────────────────────────────────
+
+main() {
+    local cmd="${1:-help}"
+    shift 2>/dev/null || true
+
+    case "$cmd" in
+        init)       cmd_init "$@" ;;
+        config)     cmd_config "$@" ;;
+        new)        cmd_new "$@" ;;
+        list|ls)    cmd_list "$@" ;;
+        delete|rm)  cmd_delete "$@" ;;
+        sessions|s) cmd_sessions "$@" ;;
+        help|-h|--help) cmd_help ;;
+        version|-v|--version) echo "muxtree v$VERSION" ;;
+        *)          die "Unknown command: $cmd. Run 'muxtree help' for usage." ;;
+    esac
+}
+
+main "$@"
