@@ -272,17 +272,19 @@ cmd_new() {
     local branch=""
     local base_branch=""
     local run_cmd=""
+    local bg=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --from)  base_branch="$2"; shift 2 ;;
             --run)   run_cmd="$2"; shift 2 ;;
+            --bg)    bg=true; shift ;;
             -*)      die "Unknown option: $1" ;;
             *)       branch="$1"; shift ;;
         esac
     done
 
-    [[ -n "$branch" ]] || die "Usage: muxtree new <branch-name> [--from <base-branch>] [--run claude|codex]"
+    [[ -n "$branch" ]] || die "Usage: muxtree new <branch-name> [--from <base-branch>] [--run claude|codex] [--bg]"
 
     # Validate --run command if provided
     if [[ -n "$run_cmd" ]]; then
@@ -345,7 +347,7 @@ cmd_new() {
     fi
 
     # 3. Launch tmux sessions
-    _launch_sessions "$repo_name" "$branch" "$wt_path" "$run_cmd"
+    _launch_sessions "$repo_name" "$branch" "$wt_path" "$run_cmd" "$bg"
 
     echo ""
     success "Ready! Worktree: ${CYAN}$wt_path${RESET}"
@@ -358,6 +360,7 @@ _launch_sessions() {
     local branch="$2"
     local wt_path="$3"
     local run_cmd="${4:-}"
+    local bg="${5:-false}"
 
     local dev_sess claude_sess
     dev_sess="$(tmux_dev_session "$repo_name" "$branch")"
@@ -377,9 +380,11 @@ _launch_sessions() {
     fi
     success "  Created session ${BOLD}$claude_sess${RESET}"
 
-    # Open terminal windows
-    _open_terminal "$dev_sess"
-    _open_terminal "$claude_sess"
+    # Open terminal windows (unless --bg)
+    if [[ "$bg" != "true" ]]; then
+        _open_terminal "$dev_sess"
+        _open_terminal "$claude_sess"
+    fi
 }
 
 _open_terminal() {
@@ -729,6 +734,7 @@ ${BOLD}COMMANDS${RESET}
     ${CYAN}new${RESET} <branch> [options]             Create worktree + tmux sessions
         --from <branch>               Base branch (default: main/master)
         --run <claude|codex>          Auto-run command in claude session
+        --bg                          Create sessions without opening terminals
 
     ${CYAN}list${RESET}                              List worktrees, diff stats, session status
 
@@ -748,6 +754,7 @@ ${BOLD}EXAMPLES${RESET}
     muxtree new feature-auth              # New worktree from main
     muxtree new fix-bug --from develop    # New worktree from develop
     muxtree new feature-ai --run claude   # Auto-launch claude code
+    muxtree new fix-bug --bg              # Create without opening terminals
     muxtree list                          # Show all worktrees + status
     muxtree sessions close feature-auth   # Kill tmux sessions
     muxtree sessions relaunch fix-bug     # Restart sessions
