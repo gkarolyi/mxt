@@ -144,7 +144,7 @@ tmux_dev_session() {
 }
 
 tmux_claude_session() {
-    echo "$(session_prefix "$1" "$2")-claude"
+    echo "$(session_prefix "$1" "$2")-agent"
 }
 
 has_tmux_session() {
@@ -352,7 +352,7 @@ cmd_new() {
     echo ""
     success "Ready! Worktree: ${CYAN}$wt_path${RESET}"
     echo -e "  Dev session:    ${BOLD}$(tmux_dev_session "$repo_name" "$branch")${RESET}"
-    echo -e "  Claude session: ${BOLD}$(tmux_claude_session "$repo_name" "$branch")${RESET}"
+    echo -e "  Agent session:  ${BOLD}$(tmux_claude_session "$repo_name" "$branch")${RESET}"
 }
 
 _launch_sessions() {
@@ -372,7 +372,7 @@ _launch_sessions() {
     tmux new-session -d -s "$dev_sess" -c "$wt_path"
     success "  Created session ${BOLD}$dev_sess${RESET}"
 
-    # Create claude session (detached)
+    # Create agent session (detached)
     if [[ -n "$run_cmd" ]]; then
         tmux new-session -d -s "$claude_sess" -c "$wt_path" "$run_cmd"
     else
@@ -688,8 +688,8 @@ _sessions_attach() {
 
     case "$which" in
         dev)    sess="$(tmux_dev_session "$repo_name" "$branch")" ;;
-        claude) sess="$(tmux_claude_session "$repo_name" "$branch")" ;;
-        *)      die "Unknown session type: $which (use dev or claude)" ;;
+        agent|claude) sess="$(tmux_claude_session "$repo_name" "$branch")" ;;
+        *)      die "Unknown session type: $which (use dev or agent)" ;;
     esac
 
     if has_tmux_session "$sess"; then
@@ -733,7 +733,7 @@ ${BOLD}COMMANDS${RESET}
 
     ${CYAN}new${RESET} <branch> [options]             Create worktree + tmux sessions
         --from <branch>               Base branch (default: main/master)
-        --run <claude|codex>          Auto-run command in claude session
+        --run <claude|codex>          Auto-run command in agent session
         --bg                          Create sessions without opening terminals
 
     ${CYAN}list${RESET}                              List worktrees, diff stats, session status
@@ -744,7 +744,7 @@ ${BOLD}COMMANDS${RESET}
         open   <branch> [--run cmd]   Create & open terminal windows
         close  <branch>               Kill tmux sessions
         relaunch <branch> [--run cmd] Close + reopen sessions
-        attach <branch> [dev|claude]  Attach to a session in current terminal
+        attach <branch> [dev|agent]   Attach to a session in current terminal
 
     ${CYAN}help${RESET}                              Show this help message
 

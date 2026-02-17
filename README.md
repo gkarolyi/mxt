@@ -46,8 +46,8 @@ cd ~/projects/my-app
 muxtree new feature-auth
 
 # 4. Two terminal windows open automatically:
-#    • my-app_feature-auth-dev     ← run your app, browse code
-#    • my-app_feature-auth-claude  ← run claude/codex here
+#    • my-app_feature-auth-dev    ← run your app, browse code
+#    • my-app_feature-auth-agent  ← run claude/codex here
 ```
 
 That's it. You're working in an isolated branch with your `.env` and config files already copied over.
@@ -107,11 +107,11 @@ Worktrees for my-app
 
   feature-auth  +42 -7
   ~/worktrees/my-app/feature-auth
-  Sessions: ● my-app_feature-auth-dev  ● my-app_feature-auth-claude
+  Sessions: ● my-app_feature-auth-dev  ● my-app_feature-auth-agent
 
   fix-bug  +3 -1
   ~/worktrees/my-app/fix-bug
-  Sessions: ○ my-app_fix-bug-dev  ○ my-app_fix-bug-claude
+  Sessions: ○ my-app_fix-bug-dev  ○ my-app_fix-bug-agent
 ```
 
 - `●` = tmux session is running
@@ -132,7 +132,7 @@ $ muxtree delete feature-auth
 ⚠ This will remove the worktree and delete the local branch.
 Are you sure? (y/N) y
 ✓ Killed session my-app_feature-auth-dev
-✓ Killed session my-app_feature-auth-claude
+✓ Killed session my-app_feature-auth-agent
 ✓ Worktree removed
 ✓ Branch deleted
 ```
@@ -236,7 +236,7 @@ Sessions follow the pattern `<repo>_<branch>-<type>`:
 
 ```
 my-app_feature-auth-dev       ← for running your app / viewing code
-my-app_feature-auth-claude    ← for Claude Code / Codex
+my-app_feature-auth-agent     ← for Claude Code / Codex
 ```
 
 Slashes and dots in branch names are replaced with dashes for tmux compatibility.
