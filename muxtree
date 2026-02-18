@@ -139,12 +139,8 @@ session_prefix() {
     echo "${repo_name}_${clean_branch}"
 }
 
-tmux_dev_session() {
-    echo "$(session_prefix "$1" "$2")-dev"
-}
-
-tmux_claude_session() {
-    echo "$(session_prefix "$1" "$2")-agent"
+tmux_session() {
+    session_prefix "$1" "$2"
 }
 
 has_tmux_session() {
@@ -351,8 +347,7 @@ cmd_new() {
 
     echo ""
     success "Ready! Worktree: ${CYAN}$wt_path${RESET}"
-    echo -e "  Dev session:    ${BOLD}$(tmux_dev_session "$repo_name" "$branch")${RESET}"
-    echo -e "  Agent session:  ${BOLD}$(tmux_claude_session "$repo_name" "$branch")${RESET}"
+    echo -e "  Session: ${BOLD}$(tmux_session "$repo_name" "$branch")${RESET} (windows: dev, agent)"
 }
 
 _launch_sessions() {
@@ -362,28 +357,31 @@ _launch_sessions() {
     local run_cmd="${4:-}"
     local bg="${5:-false}"
 
-    local dev_sess claude_sess
-    dev_sess="$(tmux_dev_session "$repo_name" "$branch")"
-    claude_sess="$(tmux_claude_session "$repo_name" "$branch")"
+    local sess
+    sess="$(tmux_session "$repo_name" "$branch")"
 
-    info "Creating tmux sessions..."
+    info "Creating tmux session..."
 
-    # Create dev session (detached)
-    tmux new-session -d -s "$dev_sess" -c "$wt_path"
-    success "  Created session ${BOLD}$dev_sess${RESET}"
+    # Create session with dev window
+    tmux new-session -d -s "$sess" -c "$wt_path"
+    tmux rename-window -t "$sess:0" "dev"
 
-    # Create agent session (detached)
+    # Add agent window
+    tmux new-window -t "$sess" -n "agent" -c "$wt_path"
+
+    # Run command in agent window if requested
     if [[ -n "$run_cmd" ]]; then
-        tmux new-session -d -s "$claude_sess" -c "$wt_path" "$run_cmd"
-    else
-        tmux new-session -d -s "$claude_sess" -c "$wt_path"
+        tmux send-keys -t "$sess:agent" "$run_cmd" Enter
     fi
-    success "  Created session ${BOLD}$claude_sess${RESET}"
 
-    # Open terminal windows (unless --bg)
+    # Select dev window as default
+    tmux select-window -t "$sess:dev"
+
+    success "  Created session ${BOLD}$sess${RESET} (windows: dev, agent)"
+
+    # Open terminal window (unless --bg)
     if [[ "$bg" != "true" ]]; then
-        _open_terminal "$dev_sess"
-        _open_terminal "$claude_sess"
+        _open_terminal "$sess"
     fi
 }
 
@@ -450,9 +448,8 @@ cmd_list() {
 
         found=true
 
-        local dev_sess claude_sess
-        dev_sess="$(tmux_dev_session "$repo_name" "$branch_name")"
-        claude_sess="$(tmux_claude_session "$repo_name" "$branch_name")"
+        local sess
+        sess="$(tmux_session "$repo_name" "$branch_name")"
 
         # Diff stats
         local diff_stat=""
@@ -473,22 +470,17 @@ cmd_list() {
         fi
 
         # Tmux session status
-        local dev_status claude_status
-        if has_tmux_session "$dev_sess"; then
-            dev_status="${GREEN}●${RESET}"
+        local sess_status
+        if has_tmux_session "$sess"; then
+            sess_status="${GREEN}●${RESET}"
         else
-            dev_status="${DIM}○${RESET}"
-        fi
-        if has_tmux_session "$claude_sess"; then
-            claude_status="${GREEN}●${RESET}"
-        else
-            claude_status="${DIM}○${RESET}"
+            sess_status="${DIM}○${RESET}"
         fi
 
         echo ""
         echo -e "  ${BOLD}${CYAN}$branch_name${RESET}  $diff_stat"
         echo -e "  ${DIM}$wt_dir${RESET}"
-        echo -e "  Sessions: $dev_status $dev_sess  $claude_status $claude_sess"
+        echo -e "  Session: $sess_status $sess"
 
     done < <(git worktree list)
 
@@ -616,8 +608,8 @@ cmd_sessions() {
             _sessions_open "$branch" "$run_cmd"
             ;;
         attach)
-            [[ -n "$branch" ]] || die "Usage: muxtree sessions attach <branch> [dev|claude]"
-            _sessions_attach "$branch" "${extra_arg:-dev}"
+            [[ -n "$branch" ]] || die "Usage: muxtree sessions attach <branch> [dev|agent]"
+            _sessions_attach "$branch" "${extra_arg:-}"
             ;;
         *)
             die "Usage: muxtree sessions <open|close|relaunch|attach> <branch> [--run claude|codex]"
@@ -638,29 +630,29 @@ _sessions_open() {
 
     [[ -d "$wt_path" ]] || die "Worktree not found: $wt_path"
 
-    local dev_sess claude_sess
-    dev_sess="$(tmux_dev_session "$repo_name" "$branch")"
-    claude_sess="$(tmux_claude_session "$repo_name" "$branch")"
+    local sess
+    sess="$(tmux_session "$repo_name" "$branch")"
 
-    # Only create sessions that don't exist
-    if has_tmux_session "$dev_sess"; then
-        warn "Session $dev_sess already exists"
+    if has_tmux_session "$sess"; then
+        warn "Session $sess already exists"
     else
-        tmux new-session -d -s "$dev_sess" -c "$wt_path"
-        success "Created session ${BOLD}$dev_sess${RESET}"
-        _open_terminal "$dev_sess"
-    fi
+        # Create session with dev window
+        tmux new-session -d -s "$sess" -c "$wt_path"
+        tmux rename-window -t "$sess:0" "dev"
 
-    if has_tmux_session "$claude_sess"; then
-        warn "Session $claude_sess already exists"
-    else
+        # Add agent window
+        tmux new-window -t "$sess" -n "agent" -c "$wt_path"
+
+        # Run command in agent window if requested
         if [[ -n "$run_cmd" ]]; then
-            tmux new-session -d -s "$claude_sess" -c "$wt_path" "$run_cmd"
-        else
-            tmux new-session -d -s "$claude_sess" -c "$wt_path"
+            tmux send-keys -t "$sess:agent" "$run_cmd" Enter
         fi
-        success "Created session ${BOLD}$claude_sess${RESET}"
-        _open_terminal "$claude_sess"
+
+        # Select dev window as default
+        tmux select-window -t "$sess:dev"
+
+        success "Created session ${BOLD}$sess${RESET} (windows: dev, agent)"
+        _open_terminal "$sess"
     fi
 }
 
@@ -678,42 +670,40 @@ _sessions_close() {
 
 _sessions_attach() {
     local branch="$1"
-    local which="${2:-dev}"
+    local window="${2:-}"
 
     ensure_git_repo
     load_config
 
     local repo_name sess
     repo_name="$(get_repo_name)"
+    sess="$(tmux_session "$repo_name" "$branch")"
 
-    case "$which" in
-        dev)    sess="$(tmux_dev_session "$repo_name" "$branch")" ;;
-        agent|claude) sess="$(tmux_claude_session "$repo_name" "$branch")" ;;
-        *)      die "Unknown session type: $which (use dev or agent)" ;;
-    esac
-
-    if has_tmux_session "$sess"; then
-        tmux attach -t "$sess"
-    else
+    if ! has_tmux_session "$sess"; then
         die "Session not found: $sess"
     fi
+
+    # Select window if specified
+    if [[ -n "$window" ]]; then
+        case "$window" in
+            dev|agent) tmux select-window -t "$sess:$window" ;;
+            *) die "Unknown window: $window (use dev or agent)" ;;
+        esac
+    fi
+
+    tmux attach -t "$sess"
 }
 
 _kill_sessions() {
     local repo_name="$1"
     local branch="$2"
 
-    local dev_sess claude_sess
-    dev_sess="$(tmux_dev_session "$repo_name" "$branch")"
-    claude_sess="$(tmux_claude_session "$repo_name" "$branch")"
+    local sess
+    sess="$(tmux_session "$repo_name" "$branch")"
 
-    if has_tmux_session "$dev_sess"; then
-        tmux kill-session -t "$dev_sess"
-        success "Killed session ${BOLD}$dev_sess${RESET}"
-    fi
-    if has_tmux_session "$claude_sess"; then
-        tmux kill-session -t "$claude_sess"
-        success "Killed session ${BOLD}$claude_sess${RESET}"
+    if has_tmux_session "$sess"; then
+        tmux kill-session -t "$sess"
+        success "Killed session ${BOLD}$sess${RESET}"
     fi
 }
 
@@ -731,20 +721,20 @@ ${BOLD}COMMANDS${RESET}
         --local                       Create project config (.muxtree in repo root)
     ${CYAN}config${RESET}                            Show current config (global + project)
 
-    ${CYAN}new${RESET} <branch> [options]             Create worktree + tmux sessions
+    ${CYAN}new${RESET} <branch> [options]             Create worktree + tmux session
         --from <branch>               Base branch (default: main/master)
-        --run <claude|codex>          Auto-run command in agent session
-        --bg                          Create sessions without opening terminals
+        --run <claude|codex>          Auto-run command in agent window
+        --bg                          Create session without opening terminal
 
     ${CYAN}list${RESET}                              List worktrees, diff stats, session status
 
     ${CYAN}delete${RESET} <branch> [--force]          Delete worktree and branch (with confirmation)
 
-    ${CYAN}sessions${RESET} <action> <branch> [opts]  Manage tmux sessions for a worktree
-        open   <branch> [--run cmd]   Create & open terminal windows
-        close  <branch>               Kill tmux sessions
-        relaunch <branch> [--run cmd] Close + reopen sessions
-        attach <branch> [dev|agent]   Attach to a session in current terminal
+    ${CYAN}sessions${RESET} <action> <branch> [opts]  Manage tmux session for a worktree
+        open   <branch> [--run cmd]   Create session & open terminal
+        close  <branch>               Kill tmux session
+        relaunch <branch> [--run cmd] Close + reopen session
+        attach <branch> [dev|agent]   Attach to session (optionally select window)
 
     ${CYAN}help${RESET}                              Show this help message
 

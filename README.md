@@ -10,7 +10,7 @@
 
 A lightweight CLI for spinning up isolated git worktrees paired with tmux sessions, purpose-built for running parallel [Claude Code](https://code.claude.com/docs) or [Codex](https://openai.com/codex/) sessions on macOS.
 
-Each `muxtree new` call gives you a fresh branch in its own directory with your config files copied in and two terminal windows ready to go — one for viewing code and running your app, one for your AI coding agent.
+Each `muxtree new` call gives you a fresh branch in its own directory with your config files copied in and a tmux session with two windows ready to go — one for viewing code and running your app, one for your AI coding agent. Switch between them with `Ctrl-b n` / `Ctrl-b p`.
 
 ---
 
@@ -42,12 +42,13 @@ muxtree init
 # 2. Navigate to your repo
 cd ~/projects/my-app
 
-# 3. Create a new worktree + sessions
+# 3. Create a new worktree + tmux session
 muxtree new feature-auth
 
-# 4. Two terminal windows open automatically:
-#    • my-app_feature-auth-dev    ← run your app, browse code
-#    • my-app_feature-auth-agent  ← run claude/codex here
+# 4. A terminal window opens with a tmux session containing two windows:
+#    • dev    ← run your app, browse code
+#    • agent  ← run claude/codex here
+#    Switch windows with Ctrl-b n / Ctrl-b p
 ```
 
 That's it. You're working in an isolated branch with your `.env` and config files already copied over.
@@ -74,7 +75,7 @@ Files to copy: .env,.env.local,.claude/settings.json
 
 ### `muxtree new <branch> [options]`
 
-Creates a worktree, copies config files, and launches two tmux sessions in new terminal windows.
+Creates a worktree, copies config files, and launches a tmux session with two windows (dev + agent) in a new terminal.
 
 ```bash
 # Branch from main (auto-detected)
@@ -94,8 +95,8 @@ muxtree new feature-ai --run codex
 
 1. `git worktree add -b <branch>` at `<worktree_dir>/<repo>/<branch>/`
 2. Copies each file from `copy_files` config into the new worktree
-3. Creates two detached tmux sessions
-4. Opens each in a new terminal window
+3. Creates a detached tmux session with two windows (dev + agent)
+4. Opens the session in a new terminal window
 
 ### `muxtree list`
 
@@ -107,11 +108,11 @@ Worktrees for my-app
 
   feature-auth  +42 -7
   ~/worktrees/my-app/feature-auth
-  Sessions: ● my-app_feature-auth-dev  ● my-app_feature-auth-agent
+  Session: ● my-app_feature-auth
 
   fix-bug  +3 -1
   ~/worktrees/my-app/fix-bug
-  Sessions: ○ my-app_fix-bug-dev  ○ my-app_fix-bug-agent
+  Session: ○ my-app_fix-bug
 ```
 
 - `●` = tmux session is running
@@ -131,8 +132,7 @@ $ muxtree delete feature-auth
 
 ⚠ This will remove the worktree and delete the local branch.
 Are you sure? (y/N) y
-✓ Killed session my-app_feature-auth-dev
-✓ Killed session my-app_feature-auth-agent
+✓ Killed session my-app_feature-auth
 ✓ Worktree removed
 ✓ Branch deleted
 ```
@@ -141,24 +141,26 @@ Use `--force` or `-f` to skip confirmation.
 
 ### `muxtree sessions <action> <branch> [options]`
 
-Manage tmux sessions independently of the worktree.
+Manage the tmux session independently of the worktree.
 
 ```bash
-# Close both sessions for a branch
+# Close session for a branch
 muxtree sessions close feature-auth
 
-# Reopen them (creates new terminal windows)
+# Reopen it (creates new terminal window)
 muxtree sessions open feature-auth
 
-# Reopen with claude auto-running
+# Reopen with claude auto-running in the agent window
 muxtree sessions open feature-auth --run claude
 
 # Close + reopen in one step
 muxtree sessions relaunch feature-auth --run codex
 
-# Attach to a session in your current terminal
-muxtree sessions attach feature-auth dev
-muxtree sessions attach feature-auth claude
+# Attach to session in your current terminal
+muxtree sessions attach feature-auth
+
+# Attach with a specific window selected
+muxtree sessions attach feature-auth agent
 ```
 
 ### `muxtree config`
@@ -232,12 +234,15 @@ copy_files=.env*,CLAUDE.md,config/*.local.json
 
 ## Tmux Session Naming
 
-Sessions follow the pattern `<repo>_<branch>-<type>`:
+Each worktree gets a single tmux session named `<repo>_<branch>` with two windows:
 
 ```
-my-app_feature-auth-dev       ← for running your app / viewing code
-my-app_feature-auth-agent     ← for Claude Code / Codex
+my-app_feature-auth
+  ├── dev     ← for running your app / viewing code
+  └── agent   ← for Claude Code / Codex
 ```
+
+Switch between windows with `Ctrl-b n` (next) and `Ctrl-b p` (previous).
 
 Slashes and dots in branch names are replaced with dashes for tmux compatibility.
 
@@ -250,9 +255,10 @@ Slashes and dots in branch names are replaced with dashes for tmux compatibility
 cd ~/projects/my-app
 muxtree new feature-user-profiles --run claude
 
-# Two terminal windows pop open:
-#   Window 1 (dev):    cd'd into the worktree, run your dev server
-#   Window 2 (claude): Claude Code is already running
+# A terminal window opens with a tmux session:
+#   dev window:    cd'd into the worktree, run your dev server
+#   agent window:  Claude Code is already running
+# Switch between them with Ctrl-b n / Ctrl-b p
 
 # Check on all your active branches
 muxtree list
@@ -260,7 +266,7 @@ muxtree list
 # Done with a feature — clean up
 muxtree delete feature-user-profiles
 
-# Need to step away but keep the worktree? Just close sessions
+# Need to step away but keep the worktree? Just close the session
 muxtree sessions close feature-user-profiles
 
 # Come back later and relaunch
