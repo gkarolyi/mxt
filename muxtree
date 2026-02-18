@@ -25,6 +25,10 @@ BOLD='\033[1m'
 DIM='\033[2m'
 RESET='\033[0m'
 
+if [[ ! -t 1 ]]; then
+    RED='' GREEN='' YELLOW='' BLUE='' CYAN='' BOLD='' DIM='' RESET=''
+fi
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 logo() {
@@ -47,9 +51,11 @@ die()     { error "$@"; exit 1; }
 _parse_config() {
     local file="$1"
     while IFS='=' read -r key value; do
-        # Trim whitespace
-        key="$(echo "$key" | xargs)"
-        value="$(echo "$value" | xargs)"
+        # Trim whitespace (pure bash, no xargs)
+        key="${key#"${key%%[![:space:]]*}"}"
+        key="${key%"${key##*[![:space:]]}"}"
+        value="${value#"${value%%[![:space:]]*}"}"
+        value="${value%"${value##*[![:space:]]}"}"
 
         # Reject values containing shell metacharacters
         if [[ "$value" =~ [\`\$\;\|\&] ]] || [[ "$value" == *'$('* ]]; then
@@ -133,14 +139,10 @@ worktree_path() {
 session_prefix() {
     local repo_name="$1"
     local branch="$2"
-    # Replace slashes and dots with dashes for tmux compatibility
-    local clean_branch="${branch//\//-}"
-    clean_branch="${clean_branch//./-}"
+    # Allowlist: replace anything not alphanumeric, underscore, or dash
+    local clean_branch="${branch//[^a-zA-Z0-9_-]/-}"
+    clean_branch="${clean_branch#-}"  # strip leading dash
     echo "${repo_name}_${clean_branch}"
-}
-
-tmux_session() {
-    session_prefix "$1" "$2"
 }
 
 has_tmux_session() {
@@ -299,6 +301,17 @@ cmd_new() {
     base_branch="${base_branch:-$(get_main_branch)}"
     wt_path="$(worktree_path "$repo_name" "$branch")"
 
+    # Validate base branch exists
+    if ! git show-ref --verify --quiet "refs/heads/$base_branch" 2>/dev/null && \
+       ! git show-ref --verify --quiet "refs/remotes/origin/$base_branch" 2>/dev/null; then
+        die "Base branch '$base_branch' does not exist."
+    fi
+
+    # Check if branch already exists
+    if git show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null; then
+        die "Branch '$branch' already exists. Use a different name, or delete it first."
+    fi
+
     if [[ -d "$wt_path" ]]; then
         die "Worktree already exists at $wt_path"
     fi
@@ -314,7 +327,8 @@ cmd_new() {
         info "Copying config files..."
         IFS=',' read -ra files <<< "$COPY_FILES"
         for file in "${files[@]}"; do
-            file="$(echo "$file" | xargs)"  # trim whitespace
+            file="${file#"${file%%[![:space:]]*}"}"
+            file="${file%"${file##*[![:space:]]}"}"
             [[ -n "$file" ]] || continue
 
             # Safe glob expansion with nullglob
@@ -347,7 +361,7 @@ cmd_new() {
 
     echo ""
     success "Ready! Worktree: ${CYAN}$wt_path${RESET}"
-    echo -e "  Session: ${BOLD}$(tmux_session "$repo_name" "$branch")${RESET} (windows: dev, agent)"
+    echo -e "  Session: ${BOLD}$(session_prefix "$repo_name" "$branch")${RESET} (windows: dev, agent)"
 }
 
 _launch_sessions() {
@@ -358,7 +372,7 @@ _launch_sessions() {
     local bg="${5:-false}"
 
     local sess
-    sess="$(tmux_session "$repo_name" "$branch")"
+    sess="$(session_prefix "$repo_name" "$branch")"
 
     info "Creating tmux session..."
 
@@ -387,7 +401,6 @@ _launch_sessions() {
 
 _open_terminal() {
     local session="$1"
-    load_config
 
     # Escape double quotes and backslashes for safe AppleScript embedding
     local safe_session="${session//\\/\\\\}"
@@ -443,13 +456,16 @@ cmd_list() {
         wt_dir="$(echo "$wt_line" | awk '{print $1}')"
         branch_name="$(echo "$wt_line" | sed -n 's/.*\[\(.*\)\].*/\1/p')"
 
+        # Skip detached HEAD worktrees
+        [[ -n "$branch_name" ]] || continue
+
         # Skip worktrees not in our managed directory
         [[ "$wt_dir" == "$wt_base"/* ]] || continue
 
         found=true
 
         local sess
-        sess="$(tmux_session "$repo_name" "$branch_name")"
+        sess="$(session_prefix "$repo_name" "$branch_name")"
 
         # Diff stats
         local diff_stat=""
@@ -494,11 +510,18 @@ cmd_list() {
 # ── Delete Worktree ───────────────────────────────────────────────────────────
 
 cmd_delete() {
-    local branch="$1"
+    local branch=""
     local force=false
 
-    [[ "${2:-}" == "--force" || "${2:-}" == "-f" ]] && force=true
-    [[ -n "$branch" ]] || die "Usage: muxtree delete <branch-name> [--force]"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force|-f) force=true; shift ;;
+            -*)         die "Unknown option: $1" ;;
+            *)          branch="$1"; shift ;;
+        esac
+    done
+
+    [[ -n "$branch" ]] || die "Usage: muxtree delete <branch-name> [--force|-f]"
 
     ensure_git_repo
     load_config
@@ -516,10 +539,18 @@ cmd_delete() {
     insertions=$(git -C "$wt_path" diff --stat HEAD 2>/dev/null | tail -1 | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
     deletions=$(git -C "$wt_path" diff --stat HEAD 2>/dev/null | tail -1 | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
 
+    # Also count staged changes
+    local staged_ins staged_del
+    staged_ins=$(git -C "$wt_path" diff --cached --stat HEAD 2>/dev/null | tail -1 | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
+    staged_del=$(git -C "$wt_path" diff --cached --stat HEAD 2>/dev/null | tail -1 | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
+
+    local total_ins=$(( ${insertions:-0} + ${staged_ins:-0} ))
+    local total_del=$(( ${deletions:-0} + ${staged_del:-0} ))
+
     echo ""
     echo -e "  Branch:    ${BOLD}$branch${RESET}"
     echo -e "  Path:      ${DIM}$wt_path${RESET}"
-    echo -e "  Changes:   ${GREEN}+${insertions:-0}${RESET} ${RED}-${deletions:-0}${RESET}"
+    echo -e "  Changes:   ${GREEN}+${total_ins}${RESET} ${RED}-${total_del}${RESET}"
     echo ""
 
     if ! $force; then
@@ -569,6 +600,7 @@ cmd_sessions() {
     local action="${1:-}"
     local branch="${2:-}"
     local run_cmd=""
+    local bg=false
 
     # Parse remaining args
     local extra_arg=""
@@ -576,28 +608,29 @@ cmd_sessions() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --run) run_cmd="$2"; shift 2 ;;
-            -*)    shift ;;
+            --bg)  bg=true; shift ;;
+            -*)    die "Unknown option: $1" ;;
             *)     extra_arg="$1"; shift ;;
         esac
     done
 
     case "$action" in
         open|launch|start)
-            [[ -n "$branch" ]] || die "Usage: muxtree sessions open <branch> [--run claude|codex]"
+            [[ -n "$branch" ]] || die "Usage: muxtree sessions open <branch> [--run claude|codex] [--bg]"
             if [[ -n "$run_cmd" ]]; then
                 case "$run_cmd" in
                     claude|codex) ;;
                     *) die "Invalid --run command: '$run_cmd'. Allowed: claude, codex" ;;
                 esac
             fi
-            _sessions_open "$branch" "$run_cmd"
+            _sessions_open "$branch" "$run_cmd" "$bg"
             ;;
         close|kill|stop)
             [[ -n "$branch" ]] || die "Usage: muxtree sessions close <branch>"
             _sessions_close "$branch"
             ;;
         relaunch|restart)
-            [[ -n "$branch" ]] || die "Usage: muxtree sessions relaunch <branch> [--run claude|codex]"
+            [[ -n "$branch" ]] || die "Usage: muxtree sessions relaunch <branch> [--run claude|codex] [--bg]"
             if [[ -n "$run_cmd" ]]; then
                 case "$run_cmd" in
                     claude|codex) ;;
@@ -605,14 +638,14 @@ cmd_sessions() {
                 esac
             fi
             _sessions_close "$branch"
-            _sessions_open "$branch" "$run_cmd"
+            _sessions_open "$branch" "$run_cmd" "$bg"
             ;;
         attach)
             [[ -n "$branch" ]] || die "Usage: muxtree sessions attach <branch> [dev|agent]"
             _sessions_attach "$branch" "${extra_arg:-}"
             ;;
         *)
-            die "Usage: muxtree sessions <open|close|relaunch|attach> <branch> [--run claude|codex]"
+            die "Usage: muxtree sessions <open|close|relaunch|attach> <branch> [--run claude|codex] [--bg]"
             ;;
     esac
 }
@@ -620,6 +653,7 @@ cmd_sessions() {
 _sessions_open() {
     local branch="$1"
     local run_cmd="$2"
+    local bg="${3:-false}"
 
     ensure_git_repo
     load_config
@@ -631,7 +665,7 @@ _sessions_open() {
     [[ -d "$wt_path" ]] || die "Worktree not found: $wt_path"
 
     local sess
-    sess="$(tmux_session "$repo_name" "$branch")"
+    sess="$(session_prefix "$repo_name" "$branch")"
 
     if has_tmux_session "$sess"; then
         warn "Session $sess already exists"
@@ -652,7 +686,11 @@ _sessions_open() {
         tmux select-window -t "$sess:dev"
 
         success "Created session ${BOLD}$sess${RESET} (windows: dev, agent)"
-        _open_terminal "$sess"
+
+        # Open terminal window (unless --bg)
+        if [[ "$bg" != "true" ]]; then
+            _open_terminal "$sess"
+        fi
     fi
 }
 
@@ -677,7 +715,7 @@ _sessions_attach() {
 
     local repo_name sess
     repo_name="$(get_repo_name)"
-    sess="$(tmux_session "$repo_name" "$branch")"
+    sess="$(session_prefix "$repo_name" "$branch")"
 
     if ! has_tmux_session "$sess"; then
         die "Session not found: $sess"
@@ -699,7 +737,7 @@ _kill_sessions() {
     local branch="$2"
 
     local sess
-    sess="$(tmux_session "$repo_name" "$branch")"
+    sess="$(session_prefix "$repo_name" "$branch")"
 
     if has_tmux_session "$sess"; then
         tmux kill-session -t "$sess"

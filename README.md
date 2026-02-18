@@ -31,6 +31,24 @@ cp muxtree ~/.local/bin/muxtree
 - **tmux** (`brew install tmux`)
 - **macOS** with Terminal.app or iTerm2
 
+### Shell Completion
+
+Tab completion is available for bash and zsh, providing completion for commands, flags, session actions, and managed branch names.
+
+**Bash** — requires [`bash-completion`](https://github.com/scop/bash-completion) (`brew install bash-completion@2`). Add to `~/.bashrc` or `~/.bash_profile`:
+
+```bash
+source /path/to/muxtree/completions/muxtree.bash
+```
+
+**Zsh** — add to `~/.zshrc`:
+
+```zsh
+source /path/to/muxtree/completions/muxtree.zsh
+```
+
+Replace `/path/to/muxtree` with the actual path to your muxtree checkout or install location.
+
 ---
 
 ## Quick Start
@@ -52,6 +70,41 @@ muxtree new feature-auth
 ```
 
 That's it. You're working in an isolated branch with your `.env` and config files already copied over.
+
+---
+
+## How It Works
+
+```
+  Your repo (~/projects/my-app)
+  ├── main branch (your normal working copy)
+  │
+  │  muxtree new feature-auth --run claude
+  │  ┌──────────────────────────────────────────────────────────┐
+  │  │  1. git worktree add                                     │
+  │  │     ~/worktrees/my-app/feature-auth/  (branch: feature-auth)
+  │  │                                                          │
+  │  │  2. Copy config files (.env, CLAUDE.md, etc.)            │
+  │  │                                                          │
+  │  │  3. Create tmux session: my-app_feature-auth             │
+  │  │     ┌─────────────┐  ┌─────────────┐                    │
+  │  │     │  dev window  │  │ agent window│                    │
+  │  │     │  (run app,   │  │ (claude is  │                    │
+  │  │     │   view code) │  │  running)   │                    │
+  │  │     └─────────────┘  └─────────────┘                    │
+  │  │     Ctrl-b n / Ctrl-b p to switch                        │
+  │  │                                                          │
+  │  │  4. Open terminal window attached to session             │
+  │  └──────────────────────────────────────────────────────────┘
+  │
+  │  muxtree new fix-bug
+  │  └─► ~/worktrees/my-app/fix-bug/  →  tmux: my-app_fix-bug
+  │
+  │  muxtree list         ← see all worktrees + diff stats + session status
+  │  muxtree delete fix-bug  ← kills session, removes worktree + branch
+```
+
+Each worktree is a fully independent working directory — separate branch, separate files, separate tmux session. You can run multiple AI agents in parallel without them stepping on each other.
 
 ---
 
@@ -89,6 +142,9 @@ muxtree new feature-ai --run claude
 
 # Auto-launch Codex instead
 muxtree new feature-ai --run codex
+
+# Create worktree + session without opening a terminal window
+muxtree new fix-bug --bg
 ```
 
 **What happens:**
@@ -165,11 +221,15 @@ muxtree sessions attach feature-auth agent
 
 ### `muxtree config`
 
-Print the current config file.
+Shows both global (`~/.muxtree/config`) and project-local (`.muxtree`) config files, labeling which one is active. Useful for debugging which settings are in effect.
+
+### `muxtree version`
+
+Print the version number. Also available as `muxtree -v` or `muxtree --version`.
 
 ### `muxtree help`
 
-Show all commands and usage.
+Show all commands and usage. Also available as `muxtree -h` or `muxtree --help`.
 
 ---
 
@@ -199,6 +259,17 @@ copy_files=.env,.env.local,CLAUDE.md,.claude/settings.json
 | `terminal` | `terminal` | Which terminal app to open: `terminal` (Terminal.app) or `iterm2` |
 | `copy_files` | *(empty)* | Comma-separated list of files/globs to copy from repo root into new worktrees |
 
+### Project-local config
+
+You can create a `.muxtree` file in your repo root to override global settings on a per-project basis. This is useful for setting project-specific `copy_files`.
+
+```bash
+# Interactive setup for the current repo
+muxtree init --local
+```
+
+The local config file uses the same key=value format. When present, local values override the global config.
+
 ### Glob patterns in copy_files
 
 The `copy_files` value supports shell glob patterns:
@@ -213,6 +284,18 @@ copy_files=.env*
 # Mix of specific files and patterns
 copy_files=.env*,CLAUDE.md,config/*.local.json
 ```
+
+### Command aliases
+
+| Command | Aliases |
+|---------|---------|
+| `muxtree list` | `muxtree ls` |
+| `muxtree delete` | `muxtree rm` |
+| `muxtree sessions` | `muxtree s` |
+| `muxtree help` | `muxtree -h`, `muxtree --help` |
+| `sessions open` | `sessions launch`, `sessions start` |
+| `sessions close` | `sessions kill`, `sessions stop` |
+| `sessions relaunch` | `sessions restart` |
 
 ---
 
@@ -244,7 +327,10 @@ my-app_feature-auth
 
 Switch between windows with `Ctrl-b n` (next) and `Ctrl-b p` (previous).
 
-Slashes and dots in branch names are replaced with dashes for tmux compatibility.
+Branch names are sanitized in two ways:
+
+- **Session names**: any character that isn't alphanumeric, underscore, or dash is replaced with a dash (tmux compatibility).
+- **Filesystem paths**: any character that isn't alphanumeric, dot, underscore, or dash is replaced with a dash (traversal prevention).
 
 ---
 
@@ -279,7 +365,7 @@ muxtree sessions open feature-user-profiles --run claude
 
 muxtree is designed with security in mind:
 
-- **No shell execution of config** — config is parsed as plain key=value pairs, not sourced. Values containing shell metacharacters (`$`, `` ` ``, `;`, `|`, `&`) are rejected.
+- **No shell execution of config** — config is parsed as plain key=value pairs, not sourced. Values containing shell metacharacters (`$`, `` ` ``, `;`, `|`, `&`) are ignored with a warning.
 - **AppleScript injection prevention** — session names are escaped before embedding in osascript.
 - **Branch name sanitization** — filesystem paths strip non-alphanumeric characters to prevent traversal.
 - **Command validation** — `--run` only accepts `claude` or `codex`.
