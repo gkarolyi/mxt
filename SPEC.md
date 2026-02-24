@@ -1381,6 +1381,28 @@ config/
 
 **Using tk for project management**: All phases and subtasks are tracked in the tk ticket system. Use `tk ready` to see available work, `tk start <id>` to begin work on a ticket, and `tk close <id>` when done. See "Project Management with tk" section above for details.
 
+**Git Commits**: After completing each phase (when all features are implemented, all tests pass, and the phase ticket is closed), create a git commit with:
+- Clear commit message describing the phase and what was implemented
+- List of tickets closed
+- Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+
+Example commit message:
+```
+Implement Phase 2: Configuration System
+
+- Config file parsing (single-line and multi-line)
+- Security validation for shell metacharacters
+- Config loading priority (defaults → global → project)
+- init and config commands implemented
+
+All tests pass. Feature parity validated with test harness.
+
+Tickets closed: mux-30uf, mux-gaau, mux-2ao5, mux-vpqk, mux-s91d,
+mux-szys, mux-ixni, mux-aut0, mux-atft, mux-x5mw, mux-mdgk
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+```
+
 ### Phase 0: Setup & Validation
 1. Create `test/features/` directory structure
 2. Create test harness script for comparing muxtree vs mxt output
