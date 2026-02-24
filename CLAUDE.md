@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+# Rules
+
+NEVER use cat << EOF or echo to output text, summaries, or reports. Use the chat interface directly.
+Use the tk tool to manage work.
+
 ## Project Overview
 
 `muxtree` is a bash-based CLI tool for managing git worktrees paired with tmux sessions. It's designed specifically for running parallel Claude Code or Codex sessions on macOS, giving each session its own isolated git worktree in a separate tmux session.
