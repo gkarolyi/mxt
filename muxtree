@@ -12,8 +12,10 @@ CONFIG_FILE="$CONFIG_DIR/config"
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 DEFAULT_WORKTREE_DIR="$HOME/worktrees"
-DEFAULT_TERMINAL="terminal"  # terminal | iterm2
+DEFAULT_TERMINAL="terminal"  # terminal | iterm2 | ghostty | current
 DEFAULT_COPY_FILES=""
+DEFAULT_PRE_SESSION_CMD=""   # Command to run after worktree setup, before tmux
+DEFAULT_TMUX_LAYOUT=""       # Tmux layout: "window:cmd1|cmd2,window2:cmd" or multi-line with []
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -50,31 +52,101 @@ die()     { error "$@"; exit 1; }
 
 _parse_config() {
     local file="$1"
-    while IFS='=' read -r key value; do
-        # Trim whitespace (pure bash, no xargs)
-        key="${key#"${key%%[![:space:]]*}"}"
-        key="${key%"${key##*[![:space:]]}"}"
-        value="${value#"${value%%[![:space:]]*}"}"
-        value="${value%"${value##*[![:space:]]}"}"
+    local in_multiline=false
+    local multiline_key=""
+    local multiline_value=""
 
-        # Reject values containing shell metacharacters
-        if [[ "$value" =~ [\`\$\;\|\&] ]] || [[ "$value" == *'$('* ]]; then
-            warn "Ignoring suspicious value for '$key' in $file"
+    while IFS= read -r line; do
+        # Skip comments and empty lines
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${line// /}" ]] && continue
+
+        # Handle multi-line array syntax: key=[...]
+        if [[ "$line" =~ ^[[:space:]]*([a-z_]+)[[:space:]]*=[[:space:]]*\[(.*) ]]; then
+            in_multiline=true
+            multiline_key="${BASH_REMATCH[1]}"
+            multiline_value="${BASH_REMATCH[2]}"
+
+            # Check if it closes on same line
+            if [[ "$multiline_value" =~ (.*)\][[:space:]]*$ ]]; then
+                multiline_value="${BASH_REMATCH[1]}"
+                in_multiline=false
+                _parse_config_set "$multiline_key" "$multiline_value"
+            fi
             continue
         fi
 
-        case "$key" in
-            worktree_dir) WORKTREE_DIR="$value" ;;
-            terminal)     TERMINAL="$value" ;;
-            copy_files)   COPY_FILES="$value" ;;
-        esac
-    done < <(grep -E '^[a-z_]+=' "$file")
+        # Continue collecting multi-line value
+        if $in_multiline; then
+            if [[ "$line" =~ ^[[:space:]]*(.*)\][[:space:]]*$ ]]; then
+                # End of multi-line value
+                multiline_value+=" ${BASH_REMATCH[1]}"
+                in_multiline=false
+                _parse_config_set "$multiline_key" "$multiline_value"
+            else
+                # Continue accumulating
+                multiline_value+=" $line"
+            fi
+            continue
+        fi
+
+        # Handle single-line key=value
+        if [[ "$line" =~ ^[[:space:]]*([a-z_]+)[[:space:]]*=[[:space:]]*(.*)$ ]]; then
+            local key="${BASH_REMATCH[1]}"
+            local value="${BASH_REMATCH[2]}"
+            _parse_config_set "$key" "$value"
+        fi
+    done < "$file"
+}
+
+_parse_config_set() {
+    local key="$1"
+    local value="$2"
+
+    # Trim whitespace
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+
+    # For tmux_layout, convert commas and newlines to semicolons
+    if [[ "$key" == "tmux_layout" ]]; then
+        # Replace commas with semicolons
+        value="${value//,/;}"
+
+        # Replace pattern: "stuff  word:" (multiple spaces before window name)
+        # This indicates a new window on a new line
+        value=$(printf '%s' "$value" | sed -E 's/  +([a-z_]+:)/;\1/g')
+
+        # Clean up any double semicolons or leading/trailing ones
+        value="${value//;;/;}"
+        value="${value#;}"
+        value="${value%;}"
+    fi
+
+    # Reject values containing shell metacharacters (except for command fields)
+    if [[ "$key" != "pre_session_cmd" && "$key" != "tmux_layout" ]]; then
+        if [[ "$value" =~ [\`\$\;\|\&] ]] || [[ "$value" == *'$('* ]]; then
+            warn "Ignoring suspicious value for '$key' in $file"
+            return
+        fi
+    fi
+
+    case "$key" in
+        worktree_dir)      WORKTREE_DIR="$value" ;;
+        terminal)          TERMINAL="$value" ;;
+        copy_files)        COPY_FILES="$value" ;;
+        pre_session_cmd)   PRE_SESSION_CMD="$value" ;;
+        tmux_layout)       TMUX_LAYOUT="$value" ;;
+    esac
 }
 
 load_config() {
     WORKTREE_DIR="$DEFAULT_WORKTREE_DIR"
     TERMINAL="$DEFAULT_TERMINAL"
     COPY_FILES="$DEFAULT_COPY_FILES"
+    PRE_SESSION_CMD="$DEFAULT_PRE_SESSION_CMD"
+    TMUX_LAYOUT="$DEFAULT_TMUX_LAYOUT"
     ACTIVE_CONFIG="none"
 
     # 1. Load global config as base
@@ -178,6 +250,17 @@ cmd_init() {
         info "Comma-separated, e.g.: .env,.env.local,CLAUDE.md"
         read -rp "Files to copy: " input_files
 
+        echo ""
+        info "Optional: Command to run after worktree setup, before tmux session."
+        info "Runs in worktree dir. Good for: bundle install, npm install, db:migrate"
+        read -rp "Pre-session command: " input_pre_cmd
+
+        echo ""
+        info "Optional: Tmux layout - define windows and panes."
+        info "You can define this now (single line) or edit the config file for multi-line format."
+        info "Example: dev:hx|lazygit,server:bin/server,agent:"
+        read -rp "Tmux layout: " input_layout
+
         cat > "$target_file" <<EOF
 # muxtree project config
 # Generated on $(date)
@@ -185,6 +268,27 @@ cmd_init() {
 # Files to copy from repo root into new worktrees (comma-separated, relative to repo root)
 # Supports glob patterns and directories
 copy_files=$input_files
+
+# Command to run after worktree setup, before tmux session (optional)
+# Runs in worktree directory. Use for setup tasks like: bundle install, npm install
+pre_session_cmd=$input_pre_cmd
+
+# Tmux layout - define windows and panes (optional)
+# Multi-line format (more readable):
+# tmux_layout=[
+#   dev:hx|lazygit
+#   server:bin/server
+#   agent:
+# ]
+# Or single line: tmux_layout=dev:hx|lazygit,server:bin/server,agent:
+#
+# Syntax:
+# - ',' or newline separates windows
+# - ':' separates window name from panes
+# - '|' separates panes (vertical split - side by side)
+# - Empty command = shell prompt
+# If not set, creates default layout: dev + agent windows
+tmux_layout=$input_layout
 EOF
 
         success "Project config written to $target_file"
@@ -206,13 +310,24 @@ EOF
         read -rp "Worktree base directory [$DEFAULT_WORKTREE_DIR]: " input_dir
         local wt_dir="${input_dir:-$DEFAULT_WORKTREE_DIR}"
 
-        read -rp "Terminal app (terminal/iterm2) [$DEFAULT_TERMINAL]: " input_term
+        read -rp "Terminal app (terminal/iterm2/ghostty/current) [$DEFAULT_TERMINAL]: " input_term
         local term="${input_term:-$DEFAULT_TERMINAL}"
 
         echo ""
         info "Enter files to copy into new worktrees (relative to repo root)."
         info "Comma-separated, e.g.: .env,.env.local,CLAUDE.md"
         read -rp "Files to copy: " input_files
+
+        echo ""
+        info "Optional: Command to run after worktree setup, before tmux session."
+        info "Runs in worktree dir. Good for: bundle install, npm install, db:migrate"
+        read -rp "Pre-session command: " input_pre_cmd
+
+        echo ""
+        info "Optional: Tmux layout - define windows and panes."
+        info "You can define this now (single line) or edit the config file for multi-line format."
+        info "Example: dev:hx|lazygit,server:bin/server,agent:"
+        read -rp "Tmux layout: " input_layout
 
         cat > "$CONFIG_FILE" <<EOF
 # muxtree configuration
@@ -221,12 +336,33 @@ EOF
 # Base directory for worktrees
 worktree_dir=$wt_dir
 
-# Terminal app: terminal | iterm2
+# Terminal app: terminal | iterm2 | ghostty | current
 terminal=$term
 
 # Files to copy from repo root into new worktrees (comma-separated, relative to repo root)
 # Supports glob patterns and directories
 copy_files=$input_files
+
+# Command to run after worktree setup, before tmux session (optional)
+# Runs in worktree directory. Use for setup tasks like: bundle install, npm install
+pre_session_cmd=$input_pre_cmd
+
+# Tmux layout - define windows and panes (optional)
+# Multi-line format (more readable):
+# tmux_layout=[
+#   dev:hx|lazygit
+#   server:bin/server
+#   agent:
+# ]
+# Or single line: tmux_layout=dev:hx|lazygit,server:bin/server,agent:
+#
+# Syntax:
+# - ',' or newline separates windows
+# - ':' separates window name from panes
+# - '|' separates panes (vertical split - side by side)
+# - Empty command = shell prompt
+# If not set, creates default layout: dev + agent windows
+tmux_layout=$input_layout
 EOF
 
         success "Config written to $CONFIG_FILE"
@@ -356,12 +492,24 @@ cmd_new() {
         done
     fi
 
-    # 3. Launch tmux sessions
+    # 3. Run pre-session command (if configured)
+    if [[ -n "$PRE_SESSION_CMD" ]]; then
+        info "Running pre-session command..."
+        echo -e "  ${DIM}$PRE_SESSION_CMD${RESET}"
+        if (cd "$wt_path" && eval "$PRE_SESSION_CMD"); then
+            success "Pre-session command completed"
+        else
+            warn "Pre-session command failed (exit code: $?)"
+            read -rp "Continue anyway? (y/N) " confirm
+            [[ "$confirm" =~ ^[Yy]$ ]] || die "Aborted due to pre-session command failure"
+        fi
+    fi
+
+    # 4. Launch tmux sessions
     _launch_sessions "$repo_name" "$branch" "$wt_path" "$run_cmd" "$bg"
 
     echo ""
     success "Ready! Worktree: ${CYAN}$wt_path${RESET}"
-    echo -e "  Session: ${BOLD}$(session_prefix "$repo_name" "$branch")${RESET} (windows: dev, agent)"
 }
 
 _launch_sessions() {
@@ -375,6 +523,24 @@ _launch_sessions() {
     sess="$(session_prefix "$repo_name" "$branch")"
 
     info "Creating tmux session..."
+
+    # Use custom layout if configured, otherwise default
+    if [[ -n "$TMUX_LAYOUT" ]]; then
+        _create_custom_layout "$sess" "$wt_path" "$run_cmd"
+    else
+        _create_default_layout "$sess" "$wt_path" "$run_cmd"
+    fi
+
+    # Open terminal window (unless --bg)
+    if [[ "$bg" != "true" ]]; then
+        _open_terminal "$sess"
+    fi
+}
+
+_create_default_layout() {
+    local sess="$1"
+    local wt_path="$2"
+    local run_cmd="${3:-}"
 
     # Create session with dev window
     tmux new-session -d -s "$sess" -c "$wt_path"
@@ -392,11 +558,91 @@ _launch_sessions() {
     tmux select-window -t "$sess:dev"
 
     success "  Created session ${BOLD}$sess${RESET} (windows: dev, agent)"
+}
 
-    # Open terminal window (unless --bg)
-    if [[ "$bg" != "true" ]]; then
-        _open_terminal "$sess"
+_create_custom_layout() {
+    local sess="$1"
+    local wt_path="$2"
+    local run_cmd="${3:-}"
+
+    local layout="$TMUX_LAYOUT"
+    local first_window=true
+    local window_names=()
+
+    # Parse layout: window:cmd1|cmd2;window2:cmd3
+    IFS=';' read -ra windows <<< "$layout"
+
+    for window_spec in "${windows[@]}"; do
+        # Trim whitespace
+        window_spec="${window_spec#"${window_spec%%[![:space:]]*}"}"
+        window_spec="${window_spec%"${window_spec##*[![:space:]]}"}"
+        [[ -n "$window_spec" ]] || continue
+
+        # Split window_name:panes
+        local window_name="${window_spec%%:*}"
+        local panes_spec="${window_spec#*:}"
+
+        # Trim window name
+        window_name="${window_name#"${window_name%%[![:space:]]*}"}"
+        window_name="${window_name%"${window_name##*[![:space:]]}"}"
+
+        window_names+=("$window_name")
+
+        if $first_window; then
+            # Create session with first window
+            tmux new-session -d -s "$sess" -c "$wt_path" -n "$window_name"
+            first_window=false
+        else
+            # Create additional windows
+            tmux new-window -t "$sess" -n "$window_name" -c "$wt_path"
+        fi
+
+        # Parse and create panes: cmd1|cmd2|cmd3
+        IFS='|' read -ra panes <<< "$panes_spec"
+        local first_pane=true
+
+        for pane_cmd in "${panes[@]}"; do
+            # Trim whitespace
+            pane_cmd="${pane_cmd#"${pane_cmd%%[![:space:]]*}"}"
+            pane_cmd="${pane_cmd%"${pane_cmd##*[![:space:]]}"}"
+
+            if $first_pane; then
+                # First pane already exists, just send command
+                first_pane=false
+                if [[ -n "$pane_cmd" ]]; then
+                    tmux send-keys -t "$sess:$window_name.0" "$pane_cmd" Enter
+                fi
+            else
+                # Create new pane (vertical split - side by side)
+                tmux split-window -h -t "$sess:$window_name" -c "$wt_path"
+                if [[ -n "$pane_cmd" ]]; then
+                    tmux send-keys -t "$sess:$window_name" "$pane_cmd" Enter
+                fi
+            fi
+        done
+
+        # Apply even layout to this window if it has multiple panes
+        if [[ ${#panes[@]} -gt 1 ]]; then
+            tmux select-layout -t "$sess:$window_name" even-horizontal
+        fi
+    done
+
+    # If --run flag provided and agent window exists, send command there
+    if [[ -n "$run_cmd" ]]; then
+        for win in "${window_names[@]}"; do
+            if [[ "$win" == "agent" ]]; then
+                tmux send-keys -t "$sess:agent.0" "$run_cmd" Enter
+                break
+            fi
+        done
     fi
+
+    # Select first window as default
+    if [[ ${#window_names[@]} -gt 0 ]]; then
+        tmux select-window -t "$sess:${window_names[0]}"
+    fi
+
+    success "  Created session ${BOLD}$sess${RESET} (windows: ${window_names[*]})"
 }
 
 _open_terminal() {
@@ -417,6 +663,23 @@ tell application "iTerm"
     end tell
 end tell
 EOF
+            ;;
+        ghostty)
+            # Ghostty: Use 'open -a' to open in new tab
+            # Note: This opens a new tab and runs the command, but may not perfectly
+            # integrate with existing windows. For better control, use 'current' mode.
+            open -a Ghostty --args -e tmux attach -t "$session" 2>/dev/null || {
+                warn "Failed to open Ghostty. Ensure Ghostty.app is installed."
+                warn "Falling back to current terminal..."
+                info "Run: tmux attach -t $session"
+            }
+            ;;
+        current)
+            # Attach in the current terminal (works with any terminal app)
+            info "Attaching to session in current terminal: ${BOLD}$session${RESET}"
+            tmux attach -t "$session" 2>/dev/null || {
+                warn "Could not attach automatically. Run: tmux attach -t $session"
+            }
             ;;
         terminal|*)
             osascript <<EOF 2>/dev/null || true
@@ -670,22 +933,12 @@ _sessions_open() {
     if has_tmux_session "$sess"; then
         warn "Session $sess already exists"
     else
-        # Create session with dev window
-        tmux new-session -d -s "$sess" -c "$wt_path"
-        tmux rename-window -t "$sess:0" "dev"
-
-        # Add agent window
-        tmux new-window -t "$sess" -n "agent" -c "$wt_path"
-
-        # Run command in agent window if requested
-        if [[ -n "$run_cmd" ]]; then
-            tmux send-keys -t "$sess:agent" "$run_cmd" Enter
+        # Use custom layout if configured, otherwise default
+        if [[ -n "$TMUX_LAYOUT" ]]; then
+            _create_custom_layout "$sess" "$wt_path" "$run_cmd"
+        else
+            _create_default_layout "$sess" "$wt_path" "$run_cmd"
         fi
-
-        # Select dev window as default
-        tmux select-window -t "$sess:dev"
-
-        success "Created session ${BOLD}$sess${RESET} (windows: dev, agent)"
 
         # Open terminal window (unless --bg)
         if [[ "$bg" != "true" ]]; then
@@ -759,6 +1012,12 @@ ${BOLD}COMMANDS${RESET}
         --local                       Create project config (.muxtree in repo root)
     ${CYAN}config${RESET}                            Show current config (global + project)
 
+        Terminal options: terminal, iterm2, ghostty, current
+        - terminal: macOS Terminal.app (new window)
+        - iterm2: iTerm2 (new window)
+        - ghostty: Ghostty (new tab via 'open -a')
+        - current: Attach in currently active terminal (any app)
+
     ${CYAN}new${RESET} <branch> [options]             Create worktree + tmux session
         --from <branch>               Base branch (default: main/master)
         --run <claude|codex>          Auto-run command in agent window
@@ -789,9 +1048,33 @@ ${BOLD}EXAMPLES${RESET}
     muxtree delete feature-auth           # Remove worktree + branch
 
 ${BOLD}CONFIG${RESET}
-    Global:  ~/.muxtree/config          (worktree_dir, terminal, copy_files)
+    Global:  ~/.muxtree/config
+             (worktree_dir, terminal, copy_files, pre_session_cmd, tmux_layout)
     Project: .muxtree in repo root      (overrides global settings)
     Env:     MUXTREE_CONFIG_DIR=/path    (override global config dir)
+
+    ${BOLD}Hooks & Layout:${RESET}
+    - pre_session_cmd:  Runs after worktree setup, before tmux session
+                        Good for: bundle install, npm install, db:migrate
+
+    - tmux_layout:      Define custom tmux windows and panes
+                        Multi-line format (recommended):
+                        tmux_layout=[
+                          dev:hx|lazygit
+                          server:cd api && bin/server|cd ui && yarn start
+                          logs:tail -f log/development.log
+                          agent:
+                        ]
+
+                        Single-line format: dev:hx|lazygit,server:bin/server,agent:
+
+                        Syntax:
+                        - ',' or newline separates windows
+                        - ':' separates window name from panes
+                        - '|' separates panes (vertical split - side by side)
+                        - Empty command = shell prompt
+
+                        If not set, creates default: dev + agent windows
 "
 }
 
