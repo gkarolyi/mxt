@@ -3,6 +3,7 @@ package tmux
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -127,6 +128,55 @@ func CreateDefaultLayout(config *SessionConfig) error {
 	config.WindowNames = []string{"dev", "agent"}
 
 	return nil
+}
+
+// HasSession checks if a tmux session exists.
+// Returns true if the session exists, false otherwise.
+func HasSession(sessionName string) bool {
+	cmd := exec.Command("tmux", "has-session", "-t", sessionName)
+	return cmd.Run() == nil
+}
+
+// KillSession kills a tmux session if it exists.
+// Returns nil if session was killed or didn't exist.
+func KillSession(sessionName string) error {
+	if !HasSession(sessionName) {
+		return nil
+	}
+
+	cmd := exec.Command("tmux", "kill-session", "-t", sessionName)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to kill session: %w", err)
+	}
+
+	return nil
+}
+
+// AttachToSession attaches to an existing tmux session in the current terminal.
+// If windowName is provided, it selects that window before attaching.
+func AttachToSession(sessionName, windowName string) error {
+	// Validate window name if provided
+	if windowName != "" && windowName != "dev" && windowName != "agent" {
+		return fmt.Errorf("Unknown window: %s (use dev or agent)", windowName)
+	}
+
+	// Select window if specified
+	if windowName != "" {
+		target := fmt.Sprintf("%s:%s", sessionName, windowName)
+		cmd := exec.Command("tmux", "select-window", "-t", target)
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to select window '%s': %w", windowName, err)
+		}
+	}
+
+	// Attach to session
+	// This replaces the current process with tmux attach
+	cmd := exec.Command("tmux", "attach", "-t", sessionName)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
 }
 
 // CreateCustomLayout creates a tmux session with a custom layout defined by the user.

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gkarolyi/mxt/internal/config"
 	"github.com/gkarolyi/mxt/internal/git"
+	"github.com/gkarolyi/mxt/internal/terminal"
 	"github.com/gkarolyi/mxt/internal/tmux"
 	"github.com/gkarolyi/mxt/internal/ui"
 	"github.com/gkarolyi/mxt/internal/worktree"
@@ -123,9 +124,13 @@ func NewCommand(branchName string, fromBranch string, runCmd string, bg bool) er
 	windowList := strings.Join(sessionConfig.WindowNames, ", ")
 	ui.Success(fmt.Sprintf("  Created session %s (windows: %s)", ui.BoldText(sessionName), windowList))
 
-	// Step 13: Open terminal (Phase 6)
-	// TODO: Phase 6 - Implement terminal opening unless --bg
-	_ = bg // Will be used in Phase 6
+	// Step 13: Open terminal (unless --bg)
+	if !bg {
+		if err := terminal.Open(cfg.Terminal, sessionName); err != nil {
+			ui.Warn(fmt.Sprintf("Failed to open terminal: %v", err))
+			ui.Info(fmt.Sprintf("Run: tmux attach -t %s", sessionName))
+		}
+	}
 
 	// Step 14: Success message
 	fmt.Println()

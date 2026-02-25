@@ -104,7 +104,27 @@ var sessionsCmd = &cobra.Command{
   attach <branch> [dev|agent]   Attach to session (optionally select window)`,
 	Args: cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		ui.Info("sessions command not yet implemented")
+		action := args[0]
+		branchName := args[1]
+
+		// For attach command, third argument can be window name
+		windowName := ""
+		if action == "attach" && len(args) > 2 {
+			windowName = args[2]
+		}
+
+		runCmd, _ := cmd.Flags().GetString("run")
+		bg, _ := cmd.Flags().GetBool("bg")
+
+		// Pass windowName as runCmd for attach action (reusing parameter)
+		if action == "attach" {
+			runCmd = windowName
+		}
+
+		if err := commands.SessionsCommand(action, branchName, runCmd, bg); err != nil {
+			ui.Error(err.Error())
+			os.Exit(1)
+		}
 	},
 }
 

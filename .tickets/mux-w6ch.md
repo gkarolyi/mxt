@@ -1,6 +1,6 @@
 ---
 id: mux-w6ch
-status: open
+status: closed
 deps: [mux-v7cj]
 links: []
 created: 2026-02-24T22:33:50Z
