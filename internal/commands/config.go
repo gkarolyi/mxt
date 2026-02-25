@@ -14,10 +14,8 @@ const separator = "────────────────────�
 func ConfigCommand() error {
 	// Check for global config
 	globalConfigPath := config.GetGlobalConfigPath()
-	globalExists := false
 
 	if _, err := os.Stat(globalConfigPath); err == nil {
-		globalExists = true
 		fmt.Printf("Global config: %s\n", globalConfigPath)
 		fmt.Println(separator)
 
@@ -42,10 +40,6 @@ func ConfigCommand() error {
 
 		if _, err := os.Stat(projectConfigPath); err == nil {
 			projectExists = true
-			if globalExists {
-				// Already printed global config, add blank line
-				fmt.Println()
-			}
 			fmt.Printf("Project config: %s (active)\n", projectConfigPath)
 			fmt.Println(separator)
 
@@ -54,6 +48,7 @@ func ConfigCommand() error {
 				return fmt.Errorf("failed to read project config: %w", err)
 			}
 			fmt.Print(string(content))
+			fmt.Println()
 		}
 	}
 

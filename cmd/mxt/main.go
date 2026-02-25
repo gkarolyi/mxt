@@ -1,11 +1,10 @@
 package main
 
 import (
-	"os"
-
 	"github.com/gkarolyi/mxt/internal/commands"
 	"github.com/gkarolyi/mxt/internal/ui"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 const version = "1.0.0"
@@ -22,6 +21,8 @@ var rootCmd = &cobra.Command{
   Tmux Worktree Session Manager v` + version + `
 
 A tool for managing git worktrees paired with tmux sessions.`,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		showVersion, _ := cmd.Flags().GetBool("version")
 		if showVersion {
@@ -67,8 +68,11 @@ var configCmd = &cobra.Command{
 var newCmd = &cobra.Command{
 	Use:   "new <branch-name>",
 	Short: "Create worktree + tmux session",
-	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 {
+			ui.Error("Usage: muxtree new <branch-name> [--from <base-branch>] [--run claude|codex] [--bg]")
+			os.Exit(1)
+		}
 		branchName := args[0]
 		fromBranch, _ := cmd.Flags().GetString("from")
 		runCmd, _ := cmd.Flags().GetString("run")
@@ -86,7 +90,10 @@ var listCmd = &cobra.Command{
 	Aliases: []string{"ls"},
 	Short:   "List worktrees, diff stats, session status",
 	Run: func(cmd *cobra.Command, args []string) {
-		ui.Info("list command not yet implemented")
+		if err := commands.ListCommand(); err != nil {
+			ui.Error(err.Error())
+			os.Exit(1)
+		}
 	},
 }
 
@@ -94,8 +101,11 @@ var deleteCmd = &cobra.Command{
 	Use:     "delete <branch-name>",
 	Aliases: []string{"rm"},
 	Short:   "Delete worktree and branch",
-	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 {
+			ui.Error("Usage: muxtree delete <branch-name> [--force|-f]")
+			os.Exit(1)
+		}
 		force, _ := cmd.Flags().GetBool("force")
 		if err := commands.DeleteCommand(args[0], force); err != nil {
 			ui.Error(err.Error())
@@ -112,10 +122,32 @@ var sessionsCmd = &cobra.Command{
   close  <branch>               Kill tmux session
   relaunch <branch> [--run cmd] Close + reopen session
   attach <branch> [dev|agent]   Attach to session (optionally select window)`,
-	Args: cobra.MinimumNArgs(2),
+	Args: cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 {
+			ui.Error("Usage: muxtree sessions <open|close|relaunch|attach> <branch> [--run claude|codex] [--bg]")
+			os.Exit(1)
+		}
 		action := args[0]
-		branchName := args[1]
+		branchName := ""
+		if len(args) > 1 {
+			branchName = args[1]
+		}
+		if branchName == "" {
+			switch action {
+			case "open", "launch", "start":
+				ui.Error("Usage: muxtree sessions open <branch> [--run claude|codex] [--bg]")
+			case "close", "kill", "stop":
+				ui.Error("Usage: muxtree sessions close <branch>")
+			case "relaunch", "restart":
+				ui.Error("Usage: muxtree sessions relaunch <branch> [--run claude|codex] [--bg]")
+			case "attach":
+				ui.Error("Usage: muxtree sessions attach <branch> [dev|agent]")
+			default:
+				ui.Error("Usage: muxtree sessions <open|close|relaunch|attach> <branch> [--run claude|codex] [--bg]")
+			}
+			os.Exit(1)
+		}
 
 		// For attach command, third argument can be window name
 		windowName := ""
