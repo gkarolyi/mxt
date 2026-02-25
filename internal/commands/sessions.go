@@ -44,7 +44,7 @@ func SessionsCommand(action string, branchName string, runCmd string, bg bool) e
 func sessionsOpen(branchName string, runCmd string, bg bool) error {
 	// Step 1: Require git repository
 	if !git.IsInsideWorkTree() {
-		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo")
+		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo.")
 	}
 
 	// Step 2: Load configuration
@@ -55,7 +55,7 @@ func sessionsOpen(branchName string, runCmd string, bg bool) error {
 
 	// Step 3: Validate --run command
 	if runCmd != "" && runCmd != "claude" && runCmd != "codex" {
-		return fmt.Errorf("Invalid --run command: '%s' (must be 'claude' or 'codex')", runCmd)
+		return fmt.Errorf("Invalid --run command: '%s'. Allowed: claude, codex", runCmd)
 	}
 
 	// Step 4: Determine repository name and worktree path
@@ -81,7 +81,6 @@ func sessionsOpen(branchName string, runCmd string, bg bool) error {
 	}
 
 	// Step 8: Create tmux session
-	ui.Info("Creating tmux session...")
 
 	sessionConfig := &tmux.SessionConfig{
 		SessionName:  sessionName,
@@ -103,7 +102,7 @@ func sessionsOpen(branchName string, runCmd string, bg bool) error {
 
 	// Format window list for success message
 	windowList := strings.Join(sessionConfig.WindowNames, ", ")
-	ui.Success(fmt.Sprintf("Created session %s (windows: %s)", ui.BoldText(sessionName), windowList))
+	ui.Success(fmt.Sprintf("  Created session %s (windows: %s)", ui.BoldText(sessionName), windowList))
 
 	// Step 9: Open terminal (unless --bg)
 	if !bg {
@@ -113,8 +112,6 @@ func sessionsOpen(branchName string, runCmd string, bg bool) error {
 		}
 	}
 
-	// Step 10: Success message
-	ui.Success(fmt.Sprintf("Ready! Worktree: %s", ui.CyanText(worktreePath)))
 
 	return nil
 }
@@ -123,7 +120,7 @@ func sessionsOpen(branchName string, runCmd string, bg bool) error {
 func sessionsClose(branchName string) error {
 	// Step 1: Require git repository
 	if !git.IsInsideWorkTree() {
-		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo")
+		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo.")
 	}
 
 	// Step 2: Load configuration (needed for session name generation)
@@ -141,6 +138,9 @@ func sessionsClose(branchName string) error {
 
 	sessionName := git.GenerateSessionName(repoName, branchName)
 
+	if !tmux.HasSession(sessionName) {
+		return nil
+	}
 	// Step 4: Kill session if exists
 	if err := tmux.KillSession(sessionName); err != nil {
 		return fmt.Errorf("failed to kill session: %w", err)
@@ -171,7 +171,7 @@ func sessionsRelaunch(branchName string, runCmd string, bg bool) error {
 func sessionsAttach(branchName string, windowName string) error {
 	// Step 1: Require git repository
 	if !git.IsInsideWorkTree() {
-		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo")
+		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo.")
 	}
 
 	// Step 2: Load configuration (needed for session name generation)

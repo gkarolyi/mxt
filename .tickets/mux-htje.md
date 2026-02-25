@@ -1,6 +1,6 @@
 ---
 id: mux-htje
-status: open
+status: closed
 deps: [mux-w6ch]
 links: []
 created: 2026-02-24T22:33:50Z

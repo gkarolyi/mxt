@@ -18,7 +18,7 @@ import (
 // DeleteCommand deletes a worktree, kills its tmux session, and removes the branch.
 func DeleteCommand(branch string, force bool) error {
 	if !git.IsInsideWorkTree() {
-		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo")
+		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo.")
 	}
 
 	cfg, err := config.Load()

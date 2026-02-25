@@ -39,7 +39,6 @@ $ mxt sessions close feature-api
 
 **Expected Output:**
 ```
-✓ Killed session test-repo_feature-api
 ```
 
 **Expected Side Effects:**
@@ -62,7 +61,7 @@ $ mxt sessions close feature-auth
 
 **Expected Output:**
 ```
-✗ Not inside a git repository. Run mxt from within your repo.
+✗ Not inside a git repository. Run muxtree from within your repo.
 ```
 
 **Exit Code:** 1

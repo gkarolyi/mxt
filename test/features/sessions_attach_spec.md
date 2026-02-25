@@ -133,7 +133,7 @@ $ mxt sessions attach feature-auth
 
 **Expected Output:**
 ```
-✗ Not inside a git repository. Run mxt from within your repo.
+✗ Not inside a git repository. Run muxtree from within your repo.
 ```
 
 **Exit Code:** 1

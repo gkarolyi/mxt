@@ -1,6 +1,6 @@
 ---
 id: mux-a5qb
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-24T22:34:35Z
@@ -13,3 +13,9 @@ parent: mux-jto1
 
 Address any differences between mxt and muxtree output
 
+
+## Notes
+
+**2026-02-25T07:22:35Z**
+
+Matched help/version/config/list output to muxtree; fixed config trailing newline and list trailing blank line; rebuilt mxt and harness checks pass for help/version/config/list.

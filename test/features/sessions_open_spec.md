@@ -15,9 +15,7 @@ $ mxt sessions open feature-auth
 
 **Expected Output:**
 ```
-▸ Creating tmux session...
-✓ Created session test-repo_feature-auth (windows: dev, agent)
-✓ Ready! Worktree: ~/worktrees/test-repo/feature-auth
+✓   Created session test-repo_feature-auth (windows: dev, agent)
 ```
 
 **Expected Side Effects:**
@@ -43,9 +41,7 @@ $ mxt sessions open feature-api --run claude
 
 **Expected Output:**
 ```
-▸ Creating tmux session...
-✓ Created session test-repo_feature-api (windows: dev, agent)
-✓ Ready! Worktree: ~/worktrees/test-repo/feature-api
+✓   Created session test-repo_feature-api (windows: dev, agent)
 ```
 
 **Expected Side Effects:**
@@ -71,9 +67,7 @@ $ mxt sessions open fix-bug --bg
 
 **Expected Output:**
 ```
-▸ Creating tmux session...
-✓ Created session test-repo_fix-bug (windows: dev, agent)
-✓ Ready! Worktree: ~/worktrees/test-repo/fix-bug
+✓   Created session test-repo_fix-bug (windows: dev, agent)
 ```
 
 **Expected Side Effects:**
@@ -101,9 +95,7 @@ $ mxt sessions open feature-ui
 
 **Expected Output:**
 ```
-▸ Creating tmux session...
-✓ Created session test-repo_feature-ui (windows: dev, server, agent)
-✓ Ready! Worktree: ~/worktrees/test-repo/feature-ui
+✓   Created session test-repo_feature-ui (windows: dev, server, agent)
 ```
 
 **Expected Side Effects:**
@@ -170,7 +162,7 @@ $ mxt sessions open feature-auth
 
 **Expected Output:**
 ```
-✗ Not inside a git repository. Run mxt from within your repo.
+✗ Not inside a git repository. Run muxtree from within your repo.
 ```
 
 **Exit Code:** 1
@@ -191,9 +183,7 @@ $ mxt sessions open feature-auth --run codex --bg
 
 **Expected Output:**
 ```
-▸ Creating tmux session...
-✓ Created session test-repo_feature-auth (windows: dev, agent)
-✓ Ready! Worktree: ~/worktrees/test-repo/feature-auth
+✓   Created session test-repo_feature-auth (windows: dev, agent)
 ```
 
 **Expected Side Effects:**

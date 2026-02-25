@@ -15,9 +15,7 @@ $ mxt sessions relaunch feature-auth
 **Expected Output:**
 ```
 ✓ Killed session test-repo_feature-auth
-▸ Creating tmux session...
-✓ Created session test-repo_feature-auth (windows: dev, agent)
-✓ Ready! Worktree: ~/worktrees/test-repo/feature-auth
+✓   Created session test-repo_feature-auth (windows: dev, agent)
 ```
 
 **Expected Side Effects:**
@@ -45,9 +43,7 @@ $ mxt sessions relaunch feature-api --run claude
 **Expected Output:**
 ```
 ✓ Killed session test-repo_feature-api
-▸ Creating tmux session...
-✓ Created session test-repo_feature-api (windows: dev, agent)
-✓ Ready! Worktree: ~/worktrees/test-repo/feature-api
+✓   Created session test-repo_feature-api (windows: dev, agent)
 ```
 
 **Expected Side Effects:**
@@ -75,9 +71,7 @@ $ mxt sessions relaunch fix-bug --bg
 **Expected Output:**
 ```
 ✓ Killed session test-repo_fix-bug
-▸ Creating tmux session...
-✓ Created session test-repo_fix-bug (windows: dev, agent)
-✓ Ready! Worktree: ~/worktrees/test-repo/fix-bug
+✓   Created session test-repo_fix-bug (windows: dev, agent)
 ```
 
 **Expected Side Effects:**
@@ -103,10 +97,7 @@ $ mxt sessions relaunch feature-new
 
 **Expected Output:**
 ```
-✓ Killed session test-repo_feature-new
-▸ Creating tmux session...
-✓ Created session test-repo_feature-new (windows: dev, agent)
-✓ Ready! Worktree: ~/worktrees/test-repo/feature-new
+✓   Created session test-repo_feature-new (windows: dev, agent)
 ```
 
 **Expected Side Effects:**
@@ -123,7 +114,7 @@ $ mxt sessions relaunch feature-new
 **Setup:**
 - Repository: test-repo
 - No worktree exists for branch "nonexistent"
-- May or may not have an old session
+- No tmux session exists for branch "nonexistent"
 
 **Input:**
 ```
@@ -132,7 +123,6 @@ $ mxt sessions relaunch nonexistent
 
 **Expected Output:**
 ```
-✓ Killed session test-repo_nonexistent
 ✗ Worktree not found: ~/worktrees/test-repo/nonexistent
 ```
 
@@ -152,7 +142,7 @@ $ mxt sessions relaunch feature-auth
 
 **Expected Output:**
 ```
-✗ Not inside a git repository. Run mxt from within your repo.
+✗ Not inside a git repository. Run muxtree from within your repo.
 ```
 
 **Exit Code:** 1

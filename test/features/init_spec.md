@@ -18,27 +18,33 @@ Shows ASCII art logo:
 
 ### Prompts (in order)
 
-**No prompt for worktree_dir** - just blank line with default value acceptance
+1. **Worktree base directory prompt:**
+```
+Worktree base directory [~/worktrees]: 
+```
 
-**No prompt for terminal** - just blank line with default value acceptance
+2. **Terminal app prompt:**
+```
+Terminal app (terminal/iterm2/ghostty/current) [terminal]: 
+```
 
-1. **Copy files prompt:**
+3. **Copy files prompt:**
 ```
 ▸ Enter files to copy into new worktrees (relative to repo root).
 ▸ Comma-separated, e.g.: .env,.env.local,CLAUDE.md
 ```
 
-2. **Pre-session command prompt:**
+4. **Pre-session command prompt:**
 ```
 ▸ Optional: Command to run after worktree setup, before tmux session.
 ▸ Runs in worktree dir. Good for: bundle install, npm install, db:migrate
 ```
 
-3. **Tmux layout prompt:**
+5. **Tmux layout prompt:**
 ```
 ▸ Optional: Tmux layout - define windows and panes.
-▸ Format: window:cmd1|cmd2;window2:cmd3
-▸ Example: dev:vim|;server:bin/server;agent:
+▸ You can define this now (single line) or edit the config file for multi-line format.
+▸ Example: dev:hx|lazygit,server:bin/server,agent:
 ```
 
 ### Success Output
@@ -72,11 +78,18 @@ copy_files=.env,CLAUDE.md
 pre_session_cmd=echo "setup complete"
 
 # Tmux layout - define windows and panes (optional)
-# Format: window_name:pane_cmd1|pane_cmd2;next_window:cmd
-# Example: dev:vim|;server:bin/server;agent:
-# - ';' separates windows
+# Multi-line format (more readable):
+# tmux_layout=[
+#   dev:hx|lazygit
+#   server:bin/server
+#   agent:
+# ]
+# Or single line: tmux_layout=dev:hx|lazygit,server:bin/server,agent:
+#
+# Syntax:
+# - ',' or newline separates windows
 # - ':' separates window name from panes
-# - '|' separates panes (horizontal split)
+# - '|' separates panes (vertical split - side by side)
 # - Empty command = shell prompt
 # If not set, creates default layout: dev + agent windows
 tmux_layout=dev:hx|lazygit,server:,agent:
@@ -159,11 +172,18 @@ copy_files=.env.local,CLAUDE.md,package.json
 pre_session_cmd=
 
 # Tmux layout - define windows and panes (optional)
-# Format: window_name:pane_cmd1|pane_cmd2;next_window:cmd
-# Example: dev:vim|;server:bin/server;agent:
-# - ';' separates windows
+# Multi-line format (more readable):
+# tmux_layout=[
+#   dev:hx|lazygit
+#   server:bin/server
+#   agent:
+# ]
+# Or single line: tmux_layout=dev:hx|lazygit,server:bin/server,agent:
+#
+# Syntax:
+# - ',' or newline separates windows
 # - ':' separates window name from panes
-# - '|' separates panes (horizontal split)
+# - '|' separates panes (vertical split - side by side)
 # - Empty command = shell prompt
 # If not set, creates default layout: dev + agent windows
 tmux_layout=dev:hx|lazygit;server:npm start;agent:

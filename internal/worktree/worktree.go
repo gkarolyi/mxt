@@ -27,7 +27,7 @@ func Create(worktreePath, branchName, baseBranch string) error {
 
 	// Create parent directory if it doesn't exist
 	parentDir := filepath.Dir(worktreePath)
-	if err := os.MkdirAll(parentDir, 0755); err != nil {
+	if err := os.MkdirAll(parentDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create parent directory: %w", err)
 	}
 
@@ -74,7 +74,6 @@ func CopyFiles(sourceDir, destDir, copyFiles string) error {
 		// Expand glob pattern relative to source directory
 		fullPattern := filepath.Join(sourceDir, pattern)
 		matches, err := filepath.Glob(fullPattern)
-
 		if err != nil {
 			ui.Warn(fmt.Sprintf("  Invalid pattern: %s", ui.DimText(pattern)))
 			continue
@@ -99,7 +98,7 @@ func CopyFiles(sourceDir, destDir, copyFiles string) error {
 
 			// Create destination parent directory if needed
 			dstParent := filepath.Dir(dstPath)
-			if err := os.MkdirAll(dstParent, 0755); err != nil {
+			if err := os.MkdirAll(dstParent, 0o755); err != nil {
 				ui.Warn(fmt.Sprintf("  Failed to create directory for %s", ui.DimText(relPath)))
 				continue
 			}
@@ -115,6 +114,14 @@ func CopyFiles(sourceDir, destDir, copyFiles string) error {
 	}
 
 	return nil
+}
+
+type PreSessionError struct {
+	ExitCode int
+}
+
+func (e PreSessionError) Error() string {
+	return fmt.Sprintf("exit code: %d", e.ExitCode)
 }
 
 // RunPreSessionCommand runs a command in the worktree directory.
@@ -144,10 +151,9 @@ func RunPreSessionCommand(worktreePath, command string) error {
 	if err := cmd.Run(); err != nil {
 		// Extract exit code if possible
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode := exitErr.ExitCode()
-			return fmt.Errorf("Pre-session command failed (exit code: %d)", exitCode)
+			return PreSessionError{ExitCode: exitErr.ExitCode()}
 		}
-		return fmt.Errorf("Pre-session command failed: %w", err)
+		return fmt.Errorf("pre-session command failed: %w", err)
 	}
 
 	ui.Success("Pre-session command completed")

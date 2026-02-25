@@ -1,7 +1,10 @@
 package commands
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -12,7 +15,8 @@ import (
 	"github.com/gkarolyi/mxt/internal/tmux"
 	"github.com/gkarolyi/mxt/internal/ui"
 	"github.com/gkarolyi/mxt/internal/worktree"
-)
+	"golang.org/x/term"
+ )
 
 // NewCommand creates a new git worktree with a new branch and launches tmux session.
 //
@@ -21,7 +25,7 @@ import (
 func NewCommand(branchName string, fromBranch string, runCmd string, bg bool) error {
 	// Step 1: Prerequisite Checks
 	if !git.IsInsideWorkTree() {
-		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo")
+		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo.")
 	}
 
 	// Step 2: Load configuration
@@ -32,7 +36,7 @@ func NewCommand(branchName string, fromBranch string, runCmd string, bg bool) er
 
 	// Step 3: Validate --run command
 	if runCmd != "" && runCmd != "claude" && runCmd != "codex" {
-		return fmt.Errorf("Invalid --run command: '%s'. Use 'claude' or 'codex'", runCmd)
+		return fmt.Errorf("Invalid --run command: '%s'. Allowed: claude, codex", runCmd)
 	}
 
 	// Step 4: Determine base branch
@@ -43,12 +47,12 @@ func NewCommand(branchName string, fromBranch string, runCmd string, bg bool) er
 
 	// Step 5: Validate base branch exists
 	if err := validateBranchExists(baseBranch); err != nil {
-		return fmt.Errorf("Base branch '%s' does not exist", baseBranch)
+		return fmt.Errorf("Base branch '%s' does not exist.", baseBranch)
 	}
 
 	// Step 6: Check if new branch already exists
 	if err := validateBranchExists(branchName); err == nil {
-		return fmt.Errorf("Branch '%s' already exists. Use a different name, or delete it first", branchName)
+		return fmt.Errorf("Branch '%s' already exists. Use a different name, or delete it first.", branchName)
 	}
 
 	// Step 7: Determine worktree path
@@ -87,8 +91,12 @@ func NewCommand(branchName string, fromBranch string, runCmd string, bg bool) er
 	// Step 11: Run pre-session command
 	if cfg.PreSessionCmd != "" {
 		if err := worktree.RunPreSessionCommand(worktreePath, cfg.PreSessionCmd); err != nil {
-			// Prompt user for confirmation
-			ui.Warn(fmt.Sprintf("Pre-session command failed: %v", err))
+			var preErr worktree.PreSessionError
+			if errors.As(err, &preErr) {
+				ui.Warn(fmt.Sprintf("Pre-session command failed (exit code: %d)", preErr.ExitCode))
+			} else {
+				ui.Warn(fmt.Sprintf("Pre-session command failed: %v", err))
+			}
 			if !promptContinue() {
 				return fmt.Errorf("Aborted due to pre-session command failure")
 			}
@@ -164,8 +172,14 @@ func runGitCommand(args ...string) error {
 // promptContinue prompts the user to continue after a failure.
 // Returns true if user enters 'y' or 'Y', false otherwise.
 func promptContinue() bool {
-	fmt.Print("Continue anyway? (y/N) ")
-	var response string
-	fmt.Scanln(&response)
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		fmt.Print("Continue anyway? (y/N) ")
+	}
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return false
+	}
+	response = strings.TrimSpace(response)
 	return response == "y" || response == "Y"
 }

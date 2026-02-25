@@ -29,7 +29,7 @@ type WorktreeInfo struct {
 func ListCommand() error {
 	// Step 1: Check if inside git repository
 	if !git.IsInsideWorkTree() {
-		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo")
+		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo.")
 	}
 
 	// Step 2: Load configuration
