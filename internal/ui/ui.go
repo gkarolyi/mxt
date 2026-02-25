@@ -142,3 +142,19 @@ func DimText(text string) string {
 	}
 	return Dim + text + Reset
 }
+
+// GreenText returns the text wrapped with green color
+func GreenText(text string) string {
+	if Green == "" {
+		return text
+	}
+	return Green + text + Reset
+}
+
+// RedText returns the text wrapped with red color
+func RedText(text string) string {
+	if Red == "" {
+		return text
+	}
+	return Red + text + Reset
+}

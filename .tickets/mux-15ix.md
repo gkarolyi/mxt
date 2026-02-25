@@ -1,6 +1,6 @@
 ---
 id: mux-15ix
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-24T22:34:34Z

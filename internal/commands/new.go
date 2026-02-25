@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/gkarolyi/mxt/internal/config"
 	"github.com/gkarolyi/mxt/internal/git"
+	"github.com/gkarolyi/mxt/internal/tmux"
 	"github.com/gkarolyi/mxt/internal/ui"
 	"github.com/gkarolyi/mxt/internal/worktree"
 )
@@ -92,15 +94,38 @@ func NewCommand(branchName string, fromBranch string, runCmd string, bg bool) er
 		}
 	}
 
-	// Step 12: Create tmux session (Phase 5)
-	// TODO: Phase 5 - Implement tmux session creation
+	// Step 12: Create tmux session
 	ui.Info("Creating tmux session...")
 	sessionName := git.GenerateSessionName(repoName, branchName)
-	ui.Success(fmt.Sprintf("  Created session %s (windows: dev, agent)", ui.BoldText(sessionName)))
 
-	// Step 13: Open terminal (Phase 5)
-	// TODO: Phase 5 - Implement terminal opening unless --bg
-	_ = bg // Suppress unused variable warning for Phase 4
+	// Prepare session configuration
+	sessionConfig := &tmux.SessionConfig{
+		SessionName:  sessionName,
+		WorktreePath: worktreePath,
+		RunCommand:   runCmd,
+		CustomLayout: cfg.TmuxLayout,
+	}
+
+	// Create session (custom or default layout)
+	if cfg.TmuxLayout != "" {
+		// Use custom layout
+		if err := tmux.CreateCustomLayout(sessionConfig); err != nil {
+			return fmt.Errorf("failed to create tmux session: %w", err)
+		}
+	} else {
+		// Use default layout
+		if err := tmux.CreateDefaultLayout(sessionConfig); err != nil {
+			return fmt.Errorf("failed to create tmux session: %w", err)
+		}
+	}
+
+	// Format window list for success message
+	windowList := strings.Join(sessionConfig.WindowNames, ", ")
+	ui.Success(fmt.Sprintf("  Created session %s (windows: %s)", ui.BoldText(sessionName), windowList))
+
+	// Step 13: Open terminal (Phase 6)
+	// TODO: Phase 6 - Implement terminal opening unless --bg
+	_ = bg // Will be used in Phase 6
 
 	// Step 14: Success message
 	fmt.Println()
