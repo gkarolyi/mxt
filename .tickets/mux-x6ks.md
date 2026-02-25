@@ -1,6 +1,6 @@
 ---
 id: mux-x6ks
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-24T22:34:33Z
