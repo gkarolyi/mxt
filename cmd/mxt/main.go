@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gkarolyi/mxt/internal/commands"
 	"github.com/gkarolyi/mxt/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -38,7 +39,11 @@ var initCmd = &cobra.Command{
 	Short: "Set up configuration",
 	Long:  "Create global config (~/.muxtree/config) or project config (.muxtree in repo root)",
 	Run: func(cmd *cobra.Command, args []string) {
-		ui.Info("init command not yet implemented")
+		local, _ := cmd.Flags().GetBool("local")
+		if err := commands.InitCommand(local); err != nil {
+			ui.Error(err.Error())
+			os.Exit(1)
+		}
 	},
 }
 
@@ -46,7 +51,10 @@ var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Show current configuration",
 	Run: func(cmd *cobra.Command, args []string) {
-		ui.Info("config command not yet implemented")
+		if err := commands.ConfigCommand(); err != nil {
+			ui.Error(err.Error())
+			os.Exit(1)
+		}
 	},
 }
 

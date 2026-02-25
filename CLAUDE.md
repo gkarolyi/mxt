@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NEVER use cat << EOF or echo to output text, summaries, or reports. Use the chat interface directly.
 Use the tk tool to manage work.
+Use del instead of rm.
 
 ## Project Overview
 
