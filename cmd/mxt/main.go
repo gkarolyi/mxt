@@ -63,7 +63,15 @@ var newCmd = &cobra.Command{
 	Short: "Create worktree + tmux session",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		ui.Info("new command not yet implemented")
+		branchName := args[0]
+		fromBranch, _ := cmd.Flags().GetString("from")
+		runCmd, _ := cmd.Flags().GetString("run")
+		bg, _ := cmd.Flags().GetBool("bg")
+
+		if err := commands.NewCommand(branchName, fromBranch, runCmd, bg); err != nil {
+			ui.Error(err.Error())
+			os.Exit(1)
+		}
 	},
 }
 

@@ -5,8 +5,45 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 )
+
+// Config represents the muxtree configuration
+type Config struct {
+	WorktreeDir    string
+	Terminal       string
+	CopyFiles      string
+	PreSessionCmd  string
+	TmuxLayout     string
+}
+
+// Load loads the configuration from defaults, global config, and project config.
+// It returns a Config struct with all values populated.
+func Load() (*Config, error) {
+	// Get current working directory for LoadConfig
+	workDir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	// Load raw config map
+	configMap, err := LoadConfig(workDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert map to struct
+	cfg := &Config{
+		WorktreeDir:   configMap["worktree_dir"],
+		Terminal:      configMap["terminal"],
+		CopyFiles:     configMap["copy_files"],
+		PreSessionCmd: configMap["pre_session_cmd"],
+		TmuxLayout:    configMap["tmux_layout"],
+	}
+
+	return cfg, nil
+}
 
 // ParseConfig parses a config file in key=value format.
 // It handles comments (lines starting with #), empty lines, and whitespace trimming.

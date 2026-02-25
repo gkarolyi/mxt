@@ -118,3 +118,27 @@ func Dief(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	Die(msg)
 }
+
+// BoldText returns the text wrapped with bold formatting
+func BoldText(text string) string {
+	if Bold == "" {
+		return text
+	}
+	return Bold + text + Reset
+}
+
+// CyanText returns the text wrapped with cyan color
+func CyanText(text string) string {
+	if Cyan == "" {
+		return text
+	}
+	return Cyan + text + Reset
+}
+
+// DimText returns the text wrapped with dim formatting
+func DimText(text string) string {
+	if Dim == "" {
+		return text
+	}
+	return Dim + text + Reset
+}
