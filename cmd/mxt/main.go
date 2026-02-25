@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/gkarolyi/mxt/internal/commands"
@@ -23,14 +22,21 @@ var rootCmd = &cobra.Command{
   Tmux Worktree Session Manager v` + version + `
 
 A tool for managing git worktrees paired with tmux sessions.`,
-	Version: version,
+	Run: func(cmd *cobra.Command, args []string) {
+		showVersion, _ := cmd.Flags().GetBool("version")
+		if showVersion {
+			commands.VersionCommand(version)
+			return
+		}
+		commands.HelpCommand(version)
+	},
 }
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Display version number",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("mxt v%s\n", version)
+		commands.VersionCommand(version)
 	},
 }
 
@@ -90,7 +96,11 @@ var deleteCmd = &cobra.Command{
 	Short:   "Delete worktree and branch",
 	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		ui.Info("delete command not yet implemented")
+		force, _ := cmd.Flags().GetBool("force")
+		if err := commands.DeleteCommand(args[0], force); err != nil {
+			ui.Error(err.Error())
+			os.Exit(1)
+		}
 	},
 }
 
@@ -132,7 +142,7 @@ var helpCmd = &cobra.Command{
 	Use:   "help",
 	Short: "Display help information",
 	Run: func(cmd *cobra.Command, args []string) {
-		rootCmd.Help()
+		commands.HelpCommand(version)
 	},
 }
 
@@ -161,6 +171,9 @@ func init() {
 	rootCmd.AddCommand(deleteCmd)
 	rootCmd.AddCommand(sessionsCmd)
 	rootCmd.AddCommand(helpCmd)
+	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		commands.HelpCommand(version)
+	})
 
 	// Customize version flag
 	rootCmd.Flags().BoolP("version", "v", false, "Display version number")

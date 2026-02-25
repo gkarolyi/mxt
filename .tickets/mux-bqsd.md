@@ -1,6 +1,6 @@
 ---
 id: mux-bqsd
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-24T22:34:35Z
