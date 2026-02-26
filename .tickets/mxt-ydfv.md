@@ -1,6 +1,6 @@
 ---
 id: mxt-ydfv
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-26T03:10:36Z
@@ -60,3 +60,8 @@ tmux_layout = ["dev:hx|lazygit", "server:bin/server", "agent:"]
 ## Testing
 - Update config loader tests to parse TOML (string + array cases).
 - Add tests for legacy import conversion and erroring on missing legacy file.
+## Notes
+
+**2026-02-26T05:23:38Z**
+
+Switched config loading to TOML-only with new paths (~/.mxt/config.toml, .mxt.toml) and added mxt init --import for legacy key=value conversion; removed config migrate command. Parser now accepts copy_files/tmux_layout arrays via go-toml/v2, init/import paths updated, completions/docs/help/AGENTS refreshed. Tests: go test ./internal/config ./internal/commands.
