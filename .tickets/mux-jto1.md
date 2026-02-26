@@ -17,3 +17,9 @@ Final validation, shell completion, documentation, and release.
 
 All feature specs pass. Shell completion works. Documentation complete. Ready for v1.0.0 release.
 
+
+## Notes
+
+**2026-02-26T00:16:46Z**
+
+Completed parity fixes (init/list spacing, glob-only missing file warnings), added mxt bash/zsh completions, updated README/visual docs. Harness runs: help, version, init, config, new (basic + --run), list, delete, sessions open/close/relaunch. Sessions attach + terminal integration still need manual verification; release prep (mux-kdel) still open.
