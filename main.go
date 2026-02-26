@@ -11,7 +11,7 @@ import (
 	"golang.org/x/term"
 )
 
-const version = "1.0.0"
+const version = "1.1.0"
 
 var rootCmd = &cobra.Command{
 	Use:   "mxt",

@@ -23,10 +23,10 @@ This project is an adaptation of the original [muxtree](https://github.com/b-d05
 
 ```bash
 # Install latest version
-go install github.com/gkarolyi/mxt/cmd/mxt@latest
+go install github.com/gkarolyi/mxt@latest
 
 # Or build from source
-go build -o mxt ./cmd/mxt
+go build -o mxt .
 
 # Copy it somewhere on your PATH
 cp mxt /usr/local/bin/mxt

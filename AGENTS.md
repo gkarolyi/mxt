@@ -18,7 +18,7 @@ Use del instead of rm.
 
 ### Package Layout
 
-1. **CLI wiring** (`cmd/mxt/main.go`)
+1. **CLI wiring** (`main.go`)
    - Cobra commands, argument parsing, and usage strings.
 2. **Command handlers** (`internal/commands`)
    - `init`, `new`, `list`, `delete`, `sessions`, `config`, `help`, `version`.
@@ -38,10 +38,10 @@ Use del instead of rm.
 
 ### Config File Format
 
-Config files use `key=value` format with special handling:
+Config files use TOML format with layout helpers:
 
-- **Single-line**: `tmux_layout=dev:hx|lazygit,server:bin/server,agent:`
-- **Multi-line**: `tmux_layout=[...]` with windows on separate lines
+- **Single-line**: `tmux_layout = "dev:hx|lazygit,server:bin/server,agent:"`
+- **Multi-line**: `tmux_layout = """..."""` with windows on separate lines
 - **Commas or newlines** separate windows in the layout
 
 ### Tmux Layout Syntax
@@ -55,12 +55,12 @@ Format: `window:pane1|pane2;window2:pane3`
 
 Example:
 
-```ini
-tmux_layout=[
+```toml
+tmux_layout = """
   dev:hx|lazygit
   server:cd api && bin/server
   agent:
-]
+"""
 ```
 
 This creates 3 windows:
@@ -111,7 +111,7 @@ Custom layouts are parsed into windows/panes and created via tmux. The first pan
 - **Priority**: Project config overrides global config
 - **Init**: `mxt init` creates global, `mxt init --local` creates project
 
-Both use the same key=value format with the same keys:
+Both use the same TOML format with the same keys:
 - `worktree_dir`: Base directory for worktrees
 - `terminal`: Which terminal app to use
 - `copy_files`: Comma-separated list of files/globs to copy
@@ -120,5 +120,5 @@ Both use the same key=value format with the same keys:
 
 ## Version and Help
 
-- Version is hardcoded in `cmd/mxt/main.go`; update it when releasing.
+- Version is hardcoded in `main.go`; update it when releasing.
 - Help text lives in `internal/commands/help.go`.
