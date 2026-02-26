@@ -1,6 +1,6 @@
 ---
 id: mux-jto1
-status: in_progress
+status: closed
 deps: [mux-htje]
 links: []
 created: 2026-02-24T22:33:50Z
