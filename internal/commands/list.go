@@ -29,7 +29,7 @@ type WorktreeInfo struct {
 func ListCommand() error {
 	// Step 1: Check if inside git repository
 	if !git.IsInsideWorkTree() {
-		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo.")
+		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo.")
 	}
 
 	// Step 2: Load configuration
@@ -50,7 +50,7 @@ func ListCommand() error {
 
 	managedDir := filepath.Join(cfg.WorktreeDir, repoName)
 	if _, err := os.Stat(managedDir); os.IsNotExist(err) {
-		ui.Info(fmt.Sprintf("No worktrees found. Use %s to create one.", ui.BoldText("muxtree new <branch>")))
+		ui.Info(fmt.Sprintf("No worktrees found. Use %s to create one.", ui.BoldText("mxt new <branch>")))
 		return nil
 	}
 
@@ -62,7 +62,7 @@ func ListCommand() error {
 
 	// Step 6: Handle no worktrees case
 	if len(worktrees) == 0 {
-		ui.Info(fmt.Sprintf("No managed worktrees found. Use %s to create one.", ui.BoldText("muxtree new <branch>")))
+		ui.Info(fmt.Sprintf("No managed worktrees found. Use %s to create one.", ui.BoldText("mxt new <branch>")))
 		fmt.Println()
 		return nil
 	}
@@ -77,7 +77,7 @@ func ListCommand() error {
 	return nil
 }
 
-// getManagedWorktrees returns a list of worktrees managed by muxtree (in $WORKTREE_DIR/<repo>/).
+// getManagedWorktrees returns a list of worktrees managed by mxt (in $WORKTREE_DIR/<repo>/).
 func getManagedWorktrees(worktreeDir, repoName string) ([]WorktreeInfo, error) {
 	// Run git worktree list --porcelain
 	cmd := exec.Command("git", "worktree", "list", "--porcelain")

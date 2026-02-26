@@ -25,7 +25,7 @@ import (
 func NewCommand(branchName string, fromBranch string, runCmd string, bg bool) error {
 	// Step 1: Prerequisite Checks
 	if !git.IsInsideWorkTree() {
-		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo.")
+		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo.")
 	}
 
 	// Step 2: Load configuration

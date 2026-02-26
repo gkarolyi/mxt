@@ -47,7 +47,7 @@ var versionCmd = &cobra.Command{
 var initCmd = &cobra.Command{
 	Use:   "init [--local]",
 	Short: "Set up configuration",
-	Long:  "Create global config (~/.muxtree/config) or project config (.muxtree in repo root)",
+	Long:  "Create global config (~/.mxt/config) or project config (.mxt in repo root)",
 	Run: func(cmd *cobra.Command, args []string) {
 		local, _ := cmd.Flags().GetBool("local")
 		if err := commands.InitCommand(local); err != nil {
@@ -77,7 +77,7 @@ var newCmd = &cobra.Command{
 	Short: "Create worktree + tmux session",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
-			ui.Error("Usage: muxtree new <branch-name> [--from <base-branch>] [--run claude|codex] [--bg]")
+			ui.Error("Usage: mxt new <branch-name> [--from <base-branch>] [--run claude|codex] [--bg]")
 			os.Exit(1)
 		}
 		branchName := args[0]
@@ -110,7 +110,7 @@ var deleteCmd = &cobra.Command{
 	Short:   "Delete worktree and branch",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
-			ui.Error("Usage: muxtree delete <branch-name> [--force|-f]")
+			ui.Error("Usage: mxt delete <branch-name> [--force|-f]")
 			os.Exit(1)
 		}
 		force, _ := cmd.Flags().GetBool("force")
@@ -132,7 +132,7 @@ var sessionsCmd = &cobra.Command{
 	Args: cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
-			ui.Error("Usage: muxtree sessions <open|close|relaunch|attach> <branch> [--run claude|codex] [--bg]")
+			ui.Error("Usage: mxt sessions <open|close|relaunch|attach> <branch> [--run claude|codex] [--bg]")
 			os.Exit(1)
 		}
 		action := args[0]
@@ -143,15 +143,15 @@ var sessionsCmd = &cobra.Command{
 		if branchName == "" {
 			switch action {
 			case "open", "launch", "start":
-				ui.Error("Usage: muxtree sessions open <branch> [--run claude|codex] [--bg]")
+				ui.Error("Usage: mxt sessions open <branch> [--run claude|codex] [--bg]")
 			case "close", "kill", "stop":
-				ui.Error("Usage: muxtree sessions close <branch>")
+				ui.Error("Usage: mxt sessions close <branch>")
 			case "relaunch", "restart":
-				ui.Error("Usage: muxtree sessions relaunch <branch> [--run claude|codex] [--bg]")
+				ui.Error("Usage: mxt sessions relaunch <branch> [--run claude|codex] [--bg]")
 			case "attach":
-				ui.Error("Usage: muxtree sessions attach <branch> [dev|agent]")
+				ui.Error("Usage: mxt sessions attach <branch> [dev|agent]")
 			default:
-				ui.Error("Usage: muxtree sessions <open|close|relaunch|attach> <branch> [--run claude|codex] [--bg]")
+				ui.Error("Usage: mxt sessions <open|close|relaunch|attach> <branch> [--run claude|codex] [--bg]")
 			}
 			os.Exit(1)
 		}
@@ -187,7 +187,7 @@ var helpCmd = &cobra.Command{
 
 func init() {
 	// Add flags for init command
-	initCmd.Flags().BoolP("local", "l", false, "Create project config (.muxtree in repo root)")
+	initCmd.Flags().BoolP("local", "l", false, "Create project config (.mxt in repo root)")
 
 	// Add flags for new command
 	newCmd.Flags().String("from", "", "Base branch (default: main/master)")

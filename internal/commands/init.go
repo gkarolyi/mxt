@@ -140,10 +140,10 @@ func initGlobalConfig() error {
 func initProjectConfig() error {
 	gitRoot, err := config.FindGitRoot(".")
 	if err != nil {
-		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo.")
+		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo.")
 	}
 
-	configPath := filepath.Join(gitRoot, ".muxtree")
+	configPath := filepath.Join(gitRoot, ".mxt")
 	reader := bufio.NewReader(os.Stdin)
 
 	// Check if config already exists
@@ -216,9 +216,8 @@ func generateGlobalConfigContent(worktreeDir, terminal, copyFiles, preSessionCmd
 	timestamp := time.Now().Format("Mon 02 Jan 2006 15:04:05 MST")
 
 	var sb strings.Builder
-	sb.WriteString("# muxtree configuration\n")
+	sb.WriteString("# mxt configuration\n")
 	sb.WriteString(fmt.Sprintf("# Generated on %s\n\n", timestamp))
-
 	sb.WriteString("# Base directory for worktrees\n")
 	sb.WriteString(fmt.Sprintf("worktree_dir=%s\n\n", worktreeDir))
 
@@ -257,9 +256,8 @@ func generateProjectConfigContent(copyFiles, preSessionCmd, tmuxLayout string) s
 	timestamp := time.Now().Format("Mon 02 Jan 2006 15:04:05 MST")
 
 	var sb strings.Builder
-	sb.WriteString("# muxtree project config\n")
+	sb.WriteString("# mxt project config\n")
 	sb.WriteString(fmt.Sprintf("# Generated on %s\n\n", timestamp))
-
 	sb.WriteString("# Files to copy from repo root into new worktrees (comma-separated, relative to repo root)\n")
 	sb.WriteString("# Supports glob patterns and directories\n")
 	sb.WriteString(fmt.Sprintf("copy_files=%s\n\n", copyFiles))

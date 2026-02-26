@@ -13,7 +13,7 @@ import (
 type ErrNotInGitRepo struct{}
 
 func (e ErrNotInGitRepo) Error() string {
-	return "Not inside a git repository. Run muxtree from within your repo."
+	return "Not inside a git repository. Run mxt from within your repo."
 }
 
 // ErrBranchExists indicates the branch already exists
@@ -84,7 +84,7 @@ func (e ErrInvalidCommand) Error() string {
 type ErrConfigNotFound struct{}
 
 func (e ErrConfigNotFound) Error() string {
-	return "No config found. Run muxtree init to create one."
+	return "No config found. Run mxt init to create one."
 }
 
 // ErrInvalidConfig indicates configuration is invalid

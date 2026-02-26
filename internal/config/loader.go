@@ -10,10 +10,10 @@ import (
 
 // Default configuration values
 const (
-	DefaultTerminal       = "terminal"
-	DefaultCopyFiles      = ""
-	DefaultPreSessionCmd  = ""
-	DefaultTmuxLayout     = ""
+	DefaultTerminal      = "terminal"
+	DefaultCopyFiles     = ""
+	DefaultPreSessionCmd = ""
+	DefaultTmuxLayout    = ""
 )
 
 // LoadDefaults returns the default configuration
@@ -112,11 +112,11 @@ func FindGitRoot(path string) (string, error) {
 }
 
 // GetGlobalConfigPath returns the path to the global config file.
-// Respects MUXTREE_CONFIG_DIR environment variable.
+// Respects MXT_CONFIG_DIR environment variable.
 func GetGlobalConfigPath() string {
-	configDir := os.Getenv("MUXTREE_CONFIG_DIR")
+	configDir := os.Getenv("MXT_CONFIG_DIR")
 	if configDir == "" {
-		configDir = filepath.Join(os.Getenv("HOME"), ".muxtree")
+		configDir = filepath.Join(os.Getenv("HOME"), ".mxt")
 	}
 	return filepath.Join(configDir, "config")
 }
@@ -145,7 +145,7 @@ func LoadConfig(workDir string) (map[string]string, error) {
 	gitRoot, err := FindGitRoot(workDir)
 	if err == nil {
 		// We're in a git repo, try to load project config
-		projectConfigPath := filepath.Join(gitRoot, ".muxtree")
+		projectConfigPath := filepath.Join(gitRoot, ".mxt")
 		projectConfig, err := LoadConfigFile(projectConfigPath)
 		if err != nil {
 			return nil, err

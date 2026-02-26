@@ -44,7 +44,7 @@ func SessionsCommand(action string, branchName string, runCmd string, bg bool) e
 func sessionsOpen(branchName string, runCmd string, bg bool) error {
 	// Step 1: Require git repository
 	if !git.IsInsideWorkTree() {
-		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo.")
+		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo.")
 	}
 
 	// Step 2: Load configuration
@@ -123,7 +123,7 @@ func sessionsOpen(branchName string, runCmd string, bg bool) error {
 func sessionsClose(branchName string) error {
 	// Step 1: Require git repository
 	if !git.IsInsideWorkTree() {
-		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo.")
+		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo.")
 	}
 
 	// Step 2: Load configuration (needed for session name generation)
@@ -174,7 +174,7 @@ func sessionsRelaunch(branchName string, runCmd string, bg bool) error {
 func sessionsAttach(branchName string, windowName string) error {
 	// Step 1: Require git repository
 	if !git.IsInsideWorkTree() {
-		return fmt.Errorf("Not inside a git repository. Run muxtree from within your repo.")
+		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo.")
 	}
 
 	// Step 2: Load configuration (needed for session name generation)

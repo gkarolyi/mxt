@@ -33,7 +33,7 @@ func ConfigCommand() error {
 	projectExists := false
 	gitRoot, err := config.FindGitRoot(".")
 	if err == nil {
-		projectConfigPath := filepath.Join(gitRoot, ".muxtree")
+		projectConfigPath := filepath.Join(gitRoot, ".mxt")
 		if _, err := os.Stat(projectConfigPath); err == nil {
 			hasAny = true
 			projectExists = true
@@ -50,11 +50,11 @@ func ConfigCommand() error {
 	}
 
 	if hasAny && !projectExists {
-		fmt.Printf("%sNo project config. Use %s%smuxtree init --local%s%s to create one.%s\n", ui.Dim, ui.Reset, ui.Bold, ui.Reset, ui.Dim, ui.Reset)
+		fmt.Printf("%sNo project config. Use %s%smxt init --local%s%s to create one.%s\n", ui.Dim, ui.Reset, ui.Bold, ui.Reset, ui.Dim, ui.Reset)
 	}
 
 	if !hasAny {
-		ui.Warn(fmt.Sprintf("No config found. Run %smuxtree init%s to create one.", ui.Bold, ui.Reset))
+		ui.Warn(fmt.Sprintf("No config found. Run %smxt init%s to create one.", ui.Bold, ui.Reset))
 		return mxtErrors.ErrConfigNotFound{}
 	}
 

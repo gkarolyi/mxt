@@ -9,13 +9,13 @@ import (
 	"strings"
 )
 
-// Config represents the muxtree configuration
+// Config represents the mxt configuration
 type Config struct {
-	WorktreeDir    string
-	Terminal       string
-	CopyFiles      string
-	PreSessionCmd  string
-	TmuxLayout     string
+	WorktreeDir   string
+	Terminal      string
+	CopyFiles     string
+	PreSessionCmd string
+	TmuxLayout    string
 }
 
 // Load loads the configuration from defaults, global config, and project config.

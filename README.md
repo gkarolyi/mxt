@@ -17,7 +17,10 @@ Each `mxt new` call gives you a fresh branch in its own directory with your conf
 ## Install
 
 ```bash
-# Build the binary
+# Install latest version
+go install github.com/gkarolyi/mxt/cmd/mxt@latest
+
+# Or build from source
 go build -o mxt ./cmd/mxt
 
 # Copy it somewhere on your PATH
@@ -26,6 +29,8 @@ cp mxt /usr/local/bin/mxt
 # Or with Homebrew's default bin path
 cp mxt ~/.local/bin/mxt
 ```
+
+Ensure `$(go env GOPATH)/bin` is on your PATH when using `go install`.
 
 ### Prerequisites
 
@@ -57,7 +62,7 @@ Replace `/path/to/mxt` with the actual path to your mxt checkout or install loca
 ## Quick Start
 
 ```bash
-# 1. Run interactive setup (creates ~/.muxtree/config)
+# 1. Run interactive setup (creates ~/.mxt/config)
 mxt init
 
 # 2. Navigate to your repo
@@ -115,7 +120,7 @@ Each worktree is a fully independent working directory — separate branch, sepa
 
 ### `mxt init`
 
-Interactive setup. Creates `~/.muxtree/config` where you specify:
+Interactive setup. Creates `~/.mxt/config` where you specify:
 
 - **Worktree base directory** — where all worktrees live (e.g. `~/worktrees`)
 - **Terminal app** — `terminal` (Terminal.app) or `iterm2`
@@ -126,7 +131,7 @@ $ mxt init
 Worktree base directory [~/worktrees]: ~/worktrees
 Terminal app (terminal/iterm2) [terminal]: iterm2
 Files to copy: .env,.env.local,.claude/settings.json
-✓ Config written to ~/.muxtree/config
+✓ Config written to ~/.mxt/config
 ```
 
 ### `mxt new <branch> [options]`
@@ -224,7 +229,7 @@ mxt sessions attach feature-auth agent
 
 ### `mxt config`
 
-Shows both global (`~/.muxtree/config`) and project-local (`.muxtree`) config files, labeling which one is active. Useful for debugging which settings are in effect.
+Shows both global (`~/.mxt/config`) and project-local (`.mxt`) config files, labeling which one is active. Useful for debugging which settings are in effect.
 
 ### `mxt version`
 
@@ -238,7 +243,7 @@ Show all commands and usage. Also available as `mxt -h` or `mxt --help`.
 
 ## Configuration
 
-Config lives at `~/.muxtree/config` (override with `MUXTREE_CONFIG_DIR`). It's a plain key=value file:
+Config lives at `~/.mxt/config` (override with `MXT_CONFIG_DIR`). It's a plain key=value file:
 
 ```ini
 # mxt configuration
@@ -264,7 +269,7 @@ copy_files=.env,.env.local,CLAUDE.md,.claude/settings.json
 
 ### Project-local config
 
-You can create a `.muxtree` file in your repo root to override global settings on a per-project basis. This is useful for setting project-specific `copy_files`.
+You can create a `.mxt` file in your repo root to override global settings on a per-project basis. This is useful for setting project-specific `copy_files`.
 
 ```bash
 # Interactive setup for the current repo
@@ -383,7 +388,7 @@ mxt is designed with security in mind:
 rm /usr/local/bin/mxt
 
 # Remove config
-rm -rf ~/.muxtree
+rm -rf ~/.mxt
 
 # Optionally clean up any remaining worktrees
 rm -rf ~/worktrees  # or wherever you configured them

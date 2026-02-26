@@ -152,7 +152,7 @@ func TestLoadConfigFile(t *testing.T) {
 terminal=iterm2
 copy_files=.env,.env.local
 `
-	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
 	}
 
@@ -191,7 +191,6 @@ func TestFindGitRoot(t *testing.T) {
 	// This test requires running in a git repository
 	// We'll test the actual implementation by checking current directory
 	root, err := FindGitRoot(".")
-
 	// If we're in a git repo, we should get a path
 	// If not, we should get an error
 	if err != nil {
@@ -223,16 +222,16 @@ func TestLoadConfig(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	// Create global config
-	globalConfigDir := filepath.Join(tmpHome, ".muxtree")
-	if err := os.MkdirAll(globalConfigDir, 0755); err != nil {
+	globalConfigDir := filepath.Join(tmpHome, ".mxt")
+	if err := os.MkdirAll(globalConfigDir, 0o755); err != nil {
 		t.Fatalf("Failed to create global config dir: %v", err)
 	}
 	globalConfigPath := filepath.Join(globalConfigDir, "config")
 	globalContent := `worktree_dir=~/global-worktrees
-terminal=terminal
-copy_files=.env
-`
-	if err := os.WriteFile(globalConfigPath, []byte(globalContent), 0644); err != nil {
+	terminal=terminal
+	copy_files=.env
+	`
+	if err := os.WriteFile(globalConfigPath, []byte(globalContent), 0o644); err != nil {
 		t.Fatalf("Failed to create global config file: %v", err)
 	}
 
@@ -244,11 +243,11 @@ copy_files=.env
 	}
 
 	// Create project config
-	projectConfigPath := filepath.Join(tmpRepo, ".muxtree")
+	projectConfigPath := filepath.Join(tmpRepo, ".mxt")
 	projectContent := `terminal=iterm2
 copy_files=.env,.env.local,CLAUDE.md
 `
-	if err := os.WriteFile(projectConfigPath, []byte(projectContent), 0644); err != nil {
+	if err := os.WriteFile(projectConfigPath, []byte(projectContent), 0o644); err != nil {
 		t.Fatalf("Failed to create project config file: %v", err)
 	}
 
