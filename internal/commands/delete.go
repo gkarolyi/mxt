@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/gkarolyi/mxt/internal/git"
 	"github.com/gkarolyi/mxt/internal/tmux"
 	"github.com/gkarolyi/mxt/internal/ui"
+	"github.com/gkarolyi/mxt/internal/worktree"
 )
 
 // DeleteCommand deletes a worktree, kills its tmux session, and removes the branch.
@@ -64,13 +64,13 @@ func DeleteCommand(branch string, force bool) error {
 	}
 
 	ui.Info("Removing worktree...")
-	if err := removeWorktree(worktreePath); err != nil {
+	if err := worktree.Remove(worktreePath); err != nil {
 		return err
 	}
 	ui.Success("Worktree removed")
 
 	ui.Info(fmt.Sprintf("Deleting branch %s...", ui.CyanText(branch)))
-	if err := deleteBranch(branch); err != nil {
+	if err := git.DeleteBranch(branch); err != nil {
 		ui.Warn("Branch may have already been deleted")
 	} else {
 		ui.Success("Branch deleted")
@@ -93,30 +93,6 @@ func promptDeleteConfirm() bool {
 	}
 	response = strings.TrimSpace(response)
 	return response == "y" || response == "Y"
-}
-
-func removeWorktree(worktreePath string) error {
-	cmd := exec.Command("git", "worktree", "remove", worktreePath, "--force")
-	cmd.Stdout = io.Discard
-	cmd.Stderr = io.Discard
-	if err := cmd.Run(); err != nil {
-		ui.Warn("git worktree remove failed, cleaning up manually...")
-		if err := os.RemoveAll(worktreePath); err != nil {
-			return fmt.Errorf("failed to remove worktree: %w", err)
-		}
-		prune := exec.Command("git", "worktree", "prune")
-		prune.Stdout = io.Discard
-		prune.Stderr = io.Discard
-		_ = prune.Run()
-	}
-	return nil
-}
-
-func deleteBranch(branch string) error {
-	cmd := exec.Command("git", "branch", "-D", branch)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = io.Discard
-	return cmd.Run()
 }
 
 func cleanupRepoDir(worktreeDir, repoName string) {

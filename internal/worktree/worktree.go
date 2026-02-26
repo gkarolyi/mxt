@@ -2,6 +2,7 @@
 package worktree
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +14,7 @@ import (
 )
 
 // Create creates a new git worktree with a new branch.
+// The context controls cancellation for the git worktree add command.
 //
 // Steps:
 //  1. Print info message with worktree path
@@ -22,7 +24,10 @@ import (
 //
 // The git output (Preparing worktree, HEAD is now at...) is automatically
 // printed to stdout by the git command.
-func Create(worktreePath, branchName, baseBranch string) error {
+func Create(ctx context.Context, worktreePath, branchName, baseBranch string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	ui.Info(fmt.Sprintf("Creating worktree at %s", worktreePath))
 
 	// Create parent directory if it doesn't exist
@@ -32,7 +37,7 @@ func Create(worktreePath, branchName, baseBranch string) error {
 	}
 
 	// Create worktree: git worktree add -b <branch> <path> <base-branch>
-	cmd := exec.Command("git", "worktree", "add", "-b", branchName, worktreePath, baseBranch)
+	cmd := exec.CommandContext(ctx, "git", "worktree", "add", "-b", branchName, worktreePath, baseBranch)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

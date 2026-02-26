@@ -2,6 +2,8 @@
 package git
 
 import (
+	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -124,4 +126,13 @@ func IsInsideWorkTree() bool {
 		return false
 	}
 	return strings.TrimSpace(string(output)) == "true"
+}
+
+// DeleteBranch deletes a local branch by name.
+// Uses: git branch -D <branch>
+func DeleteBranch(branch string) error {
+	cmd := exec.Command("git", "branch", "-D", branch)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = io.Discard
+	return cmd.Run()
 }

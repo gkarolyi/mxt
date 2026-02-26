@@ -2,12 +2,15 @@ package commands
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/gkarolyi/mxt/internal/config"
 	"github.com/gkarolyi/mxt/internal/git"
@@ -70,9 +73,28 @@ func NewCommand(branchName string, fromBranch string, runCmd string, bg bool) er
 
 	// === Execution Phase ===
 
-	// Step 9: Create worktree
-	if err := worktree.Create(worktreePath, branchName, baseBranch); err != nil {
-		return fmt.Errorf("failed to create worktree: %w", err)
+	// Step 9: Create worktree (interrupt-safe)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	createErr := worktree.Create(ctx, worktreePath, branchName, baseBranch)
+	stop()
+	if createErr != nil {
+		interrupted := ctx.Err() != nil
+		if interrupted {
+			ui.Warn("Worktree creation interrupted. Cleaning up partial worktree...")
+		} else {
+			ui.Warn("Worktree creation failed. Cleaning up partial worktree...")
+		}
+		cleanupErr := cleanupWorktree(worktreePath, branchName)
+		if cleanupErr != nil {
+			if interrupted {
+				return fmt.Errorf("worktree creation interrupted: %w", errors.Join(createErr, cleanupErr))
+			}
+			return fmt.Errorf("failed to create worktree: %w", errors.Join(createErr, cleanupErr))
+		}
+		if interrupted {
+			return fmt.Errorf("worktree creation interrupted")
+		}
+		return fmt.Errorf("failed to create worktree: %w", createErr)
 	}
 
 	// Step 10: Copy config files
