@@ -73,8 +73,9 @@ mxt init
 # 2. Navigate to your repo
 cd ~/projects/my-app
 
-# 3. Create a new worktree + tmux session
-mxt new feature-auth
+# 3. Create a new worktree + tmux session (prompts for branch name)
+mxt new
+# Branch name: feature-auth
 
 # 4. A terminal window opens with a tmux session containing two windows:
 #    • dev    ← run your app, browse code
@@ -139,11 +140,15 @@ Files to copy: .env,.env.local,.claude/settings.json
 ✓ Config written to ~/.mxt/config
 ```
 
-### `mxt new <branch> [options]`
+### `mxt new [branch] [options]`
 
 Creates a worktree, copies config files, and launches a tmux session with two windows (dev + agent) in a new terminal.
+If the branch name is omitted, mxt prompts for it when stdin is a TTY.
 
 ```bash
+# Prompt for branch name when omitted
+mxt new
+
 # Branch from main (auto-detected)
 mxt new feature-auth
 

@@ -1,6 +1,6 @@
 ---
 id: mxt-ahd3
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-26T03:10:45Z
@@ -29,3 +29,8 @@ If mxt new is invoked without a name argument, prompt the user for a branch/work
 
 ## Testing
 - Add a testable prompt helper (inject reader) and cover empty input + whitespace trimming.
+## Notes
+
+**2026-02-26T03:54:58Z**
+
+Added interactive branch prompt when no args, updated usage/docs, and added tests.

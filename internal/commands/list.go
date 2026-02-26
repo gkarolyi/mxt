@@ -50,7 +50,7 @@ func ListCommand() error {
 
 	managedDir := filepath.Join(cfg.WorktreeDir, repoName)
 	if _, err := os.Stat(managedDir); os.IsNotExist(err) {
-		ui.Info(fmt.Sprintf("No worktrees found. Use %s to create one.", ui.BoldText("mxt new <branch>")))
+		ui.Info(fmt.Sprintf("No worktrees found. Use %s to create one.", ui.BoldText("mxt new [branch]")))
 		return nil
 	}
 
@@ -62,7 +62,7 @@ func ListCommand() error {
 
 	// Step 6: Handle no worktrees case
 	if len(worktrees) == 0 {
-		ui.Info(fmt.Sprintf("No managed worktrees found. Use %s to create one.", ui.BoldText("mxt new <branch>")))
+		ui.Info(fmt.Sprintf("No managed worktrees found. Use %s to create one.", ui.BoldText("mxt new [branch]")))
 		fmt.Println()
 		return nil
 	}

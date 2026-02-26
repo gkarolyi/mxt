@@ -8,6 +8,7 @@ import (
 	mxtErrors "github.com/gkarolyi/mxt/internal/errors"
 	"github.com/gkarolyi/mxt/internal/ui"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 const version = "1.0.0"
@@ -73,14 +74,25 @@ var configCmd = &cobra.Command{
 }
 
 var newCmd = &cobra.Command{
-	Use:   "new <branch-name>",
+	Use:   "new [branch-name]",
 	Short: "Create worktree + tmux session",
 	Run: func(cmd *cobra.Command, args []string) {
+		branchName := ""
 		if len(args) == 0 {
-			ui.Error("Usage: mxt new <branch-name> [--from <base-branch>] [--run claude|codex] [--bg]")
-			os.Exit(1)
+			if term.IsTerminal(int(os.Stdin.Fd())) {
+				prompted, err := commands.PromptBranchName(os.Stdin, os.Stdout)
+				if err != nil {
+					ui.Error(err.Error())
+					os.Exit(1)
+				}
+				branchName = prompted
+			} else {
+				ui.Error("Usage: mxt new [branch-name] [--from <base-branch>] [--run claude|codex] [--bg]")
+				os.Exit(1)
+			}
+		} else {
+			branchName = args[0]
 		}
-		branchName := args[0]
 		fromBranch, _ := cmd.Flags().GetString("from")
 		runCmd, _ := cmd.Flags().GetString("run")
 		bg, _ := cmd.Flags().GetBool("bg")
