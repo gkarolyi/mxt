@@ -3,7 +3,7 @@
 _mxt_managed_branches() {
     local worktree_dir repo_name wt_base
     worktree_dir="$HOME/worktrees"
-    local config_dir="${MXT_CONFIG_DIR:-$HOME/.mxt}"
+    local config_dir="${MXT_CONFIG_DIR:-$HOME/.config/mxt}"
     local config_file="$config_dir/config.toml"
 
     # Load worktree_dir from global config

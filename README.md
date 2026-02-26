@@ -67,7 +67,7 @@ Replace `/path/to/mxt` with the actual path to your mxt checkout or install loca
 ## Quick Start
 
 ```bash
-# 1. Run interactive setup (creates ~/.mxt/config.toml)
+# 1. Run interactive setup (creates ~/.config/mxt/config.toml)
 mxt init
 
 # 2. Navigate to your repo
@@ -126,7 +126,7 @@ Each worktree is a fully independent working directory — separate branch, sepa
 
 ### `mxt init`
 
-Interactive setup. Creates `~/.mxt/config.toml` (TOML) where you specify:
+Interactive setup. Creates `~/.config/mxt/config.toml` (TOML) where you specify:
 
 - **Worktree base directory** — where all worktrees live (e.g. `~/worktrees`)
 - **Terminal app** — `terminal` (Terminal.app), `iterm2`, `ghostty`, or `current`
@@ -139,10 +139,10 @@ Worktree base directory [~/worktrees]: ~/worktrees
 Terminal app (terminal/iterm2) [terminal]: iterm2
 Sandbox tool (firejail/docker, optional) [none]:
 Files to copy: .env,.env.local,.claude/settings.json
-✓ Config written to ~/.mxt/config.toml
+✓ Config written to ~/.config/mxt/config.toml
 ```
 
-Use `mxt init --import` to convert a legacy `~/.mxt/config` file to TOML without prompts. For project configs, run `mxt init --local --import` to import `.mxt` into `.mxt.toml`.
+Use `mxt init --import` to convert a legacy `~/.config/mxt/config` file to TOML without prompts. For project configs, run `mxt init --local --import` to import `.mxt` into `.mxt.toml`.
 
 
 ### `mxt new [branch] [options]`
@@ -245,7 +245,7 @@ mxt sessions attach feature-auth agent
 
 ### `mxt config`
 
-Shows both global (`~/.mxt/config.toml`) and project-local (`.mxt.toml`) config files, labeling which one is active. Useful for debugging which settings are in effect. Convert legacy key=value configs with `mxt init --import`.
+Shows both global (`~/.config/mxt/config.toml`) and project-local (`.mxt.toml`) config files, labeling which one is active. Useful for debugging which settings are in effect. Convert legacy key=value configs with `mxt init --import`.
 
 
 ### `mxt version`
@@ -260,7 +260,7 @@ Show all commands and usage. Also available as `mxt -h` or `mxt --help`.
 
 ## Configuration
 
-Config lives at `~/.mxt/config.toml` (override with `MXT_CONFIG_DIR`). It's a TOML file:
+Config lives at `~/.config/mxt/config.toml` (override with `MXT_CONFIG_DIR`). It's a TOML file:
 
 ```toml
 # mxt configuration (TOML)
@@ -422,7 +422,7 @@ mxt is designed with security in mind:
 rm /usr/local/bin/mxt
 
 # Remove config
-rm -rf ~/.mxt
+rm -rf ~/.config/mxt
 
 # Optionally clean up any remaining worktrees
 rm -rf ~/worktrees  # or wherever you configured them

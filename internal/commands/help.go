@@ -17,7 +17,7 @@ func HelpCommand(version string) {
 	fmt.Println()
 
 	fmt.Printf("%sCOMMANDS%s\n", ui.Bold, ui.Reset)
-	fmt.Printf("    %sinit%s                              Set up global config (~/.mxt/config.toml)\n", ui.Cyan, ui.Reset)
+	fmt.Printf("    %sinit%s                              Set up global config (~/.config/mxt/config.toml)\n", ui.Cyan, ui.Reset)
 	fmt.Println("        --local                       Create project config (.mxt.toml in repo root)")
 	fmt.Println("        --import                      Import legacy key=value config to TOML")
 	fmt.Println("        --reinit                      Overwrite existing config without prompting")
@@ -63,7 +63,7 @@ func HelpCommand(version string) {
 	fmt.Println("    mxt delete feature-auth           # Remove worktree + branch")
 	fmt.Println()
 	fmt.Printf("%sCONFIG%s\n", ui.Bold, ui.Reset)
-	fmt.Println("    Global:  ~/.mxt/config.toml (TOML)")
+	fmt.Println("    Global:  ~/.config/mxt/config.toml (TOML)")
 	fmt.Println("             (worktree_dir, terminal, sandbox_tool, copy_files, pre_session_cmd, tmux_layout)")
 	fmt.Println("    Project: .mxt.toml in repo root (TOML overrides global settings)")
 	fmt.Println("    Legacy:  mxt init --import      (convert key=value configs)")

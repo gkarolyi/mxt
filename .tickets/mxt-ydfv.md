@@ -13,11 +13,11 @@ assignee: gkarolyi
 Switch config files to TOML (.toml) and drop legacy parsing; add `mxt init --import` to convert legacy configs.
 
 ## Context
-- Current config format is key=value in ~/.mxt/config and <repo>/.mxt.
+- Current config format is key=value in ~/.config/mxt/config and <repo>/.mxt.
 - Config loading should move to TOML only; old format is supported only for import.
 
 ## Scope
-- Global config path: ~/.mxt/config.toml (or $MXT_CONFIG_DIR/config.toml).
+- Global config path: ~/.config/mxt/config.toml (or $MXT_CONFIG_DIR/config.toml).
 - Project config path: <repo>/.mxt.toml.
 - Update config loader/parser, init writer, config command, help text, README.
 - Keep existing keys/semantics: worktree_dir, terminal, copy_files, pre_session_cmd, tmux_layout.
@@ -39,7 +39,7 @@ tmux_layout = ["dev:hx|lazygit", "server:bin/server", "agent:"]
 
 ## Legacy import
 - `mxt init --import` reads legacy config and writes TOML to the new path.
-- `--local --import` imports from legacy .mxt in repo root; global import uses ~/.mxt/config.
+- `--local --import` imports from legacy .mxt in repo root; global import uses ~/.config/mxt/config.
 - Import does not prompt for values; it maps existing keys directly.
 - If legacy file is missing, return a clear error.
 - If target TOML exists and `--reinit` is not set, refuse to overwrite.
@@ -64,4 +64,4 @@ tmux_layout = ["dev:hx|lazygit", "server:bin/server", "agent:"]
 
 **2026-02-26T05:23:38Z**
 
-Switched config loading to TOML-only with new paths (~/.mxt/config.toml, .mxt.toml) and added mxt init --import for legacy key=value conversion; removed config migrate command. Parser now accepts copy_files/tmux_layout arrays via go-toml/v2, init/import paths updated, completions/docs/help/AGENTS refreshed. Tests: go test ./internal/config ./internal/commands.
+Switched config loading to TOML-only with new paths (~/.config/mxt/config.toml, .mxt.toml) and added mxt init --import for legacy key=value conversion; removed config migrate command. Parser now accepts copy_files/tmux_layout arrays via go-toml/v2, init/import paths updated, completions/docs/help/AGENTS refreshed. Tests: go test ./internal/config ./internal/commands.

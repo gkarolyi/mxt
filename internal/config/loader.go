@@ -117,7 +117,7 @@ func FindGitRoot(path string) (string, error) {
 func getConfigDir() string {
 	configDir := os.Getenv("MXT_CONFIG_DIR")
 	if configDir == "" {
-		configDir = filepath.Join(os.Getenv("HOME"), ".mxt")
+		configDir = filepath.Join(os.Getenv("HOME"), ".config", "mxt")
 	}
 	return configDir
 }

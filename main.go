@@ -48,7 +48,7 @@ var versionCmd = &cobra.Command{
 var initCmd = &cobra.Command{
 	Use:   "init [--local] [--import] [--reinit]",
 	Short: "Set up configuration",
-	Long:  "Create global config (~/.mxt/config.toml) or project config (.mxt.toml in repo root)",
+	Long:  "Create global config (~/.config/mxt/config.toml) or project config (.mxt.toml in repo root)",
 	Run: func(cmd *cobra.Command, args []string) {
 		local, _ := cmd.Flags().GetBool("local")
 		reinit, _ := cmd.Flags().GetBool("reinit")

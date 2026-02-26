@@ -223,7 +223,7 @@ func TestLoadConfig(t *testing.T) {
 	defer os.Setenv("HOME", oldHome)
 
 	// Create global config
-	globalConfigDir := filepath.Join(tmpHome, ".mxt")
+	globalConfigDir := filepath.Join(tmpHome, ".config", "mxt")
 	if err := os.MkdirAll(globalConfigDir, 0o755); err != nil {
 		t.Fatalf("Failed to create global config dir: %v", err)
 	}
