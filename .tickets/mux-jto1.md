@@ -27,3 +27,7 @@ Completed parity fixes (init/list spacing, glob-only missing file warnings), add
 **2026-02-26T00:33:12Z**
 
 Created test/run_feature_specs.sh to automate harness runs and prompt for manual checks (sessions attach, terminal integration, pre-session failure).
+
+**2026-02-26T01:00:04Z**
+
+Fixed config no-config output to match muxtree (warn + exit 1), adjusted custom layout window list separator (space-separated) in new/sessions, and updated specs + runner init normalization.

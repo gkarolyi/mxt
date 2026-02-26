@@ -66,7 +66,7 @@ Preparing worktree (new branch 'test-branch')
 HEAD is now at abc1234 Initial commit
 ✓ Worktree created (branch test-branch from main)
 ▸ Creating tmux session...
-✓   Created session test-repo_test-branch (windows: dev, server, agent)
+✓   Created session test-repo_test-branch (windows: dev server agent)
 
 ✓ Ready! Worktree: /Users/username/Code/worktrees/test-repo/test-branch
 ```
@@ -118,7 +118,7 @@ Preparing worktree (new branch 'test-branch')
 HEAD is now at abc1234 Initial commit
 ✓ Worktree created (branch test-branch from main)
 ▸ Creating tmux session...
-✓   Created session test-repo_test-branch (windows: dev, server, logs, agent)
+✓   Created session test-repo_test-branch (windows: dev server logs agent)
 
 ✓ Ready! Worktree: /Users/username/Code/worktrees/test-repo/test-branch
 ```
@@ -161,7 +161,7 @@ Preparing worktree (new branch 'test-branch')
 HEAD is now at abc1234 Initial commit
 ✓ Worktree created (branch test-branch from main)
 ▸ Creating tmux session...
-✓   Created session test-repo_test-branch (windows: dev, agent)
+✓   Created session test-repo_test-branch (windows: dev agent)
 
 ✓ Ready! Worktree: /Users/username/Code/worktrees/test-repo/test-branch
 ```
@@ -200,7 +200,7 @@ Preparing worktree (new branch 'test-branch')
 HEAD is now at abc1234 Initial commit
 ✓ Worktree created (branch test-branch from main)
 ▸ Creating tmux session...
-✓   Created session test-repo_test-branch (windows: dev, server)
+✓   Created session test-repo_test-branch (windows: dev server)
 
 ✓ Ready! Worktree: /Users/username/Code/worktrees/test-repo/test-branch
 ```
@@ -328,7 +328,7 @@ HEAD is now at abc1234 Initial commit
    ```
 8. Print success message:
    ```
-   ✓   Created session <session> (windows: <window1>, <window2>, ...)
+   ✓   Created session <session> (windows: <window1> <window2> ...)
    ```
 
 ---

@@ -6,17 +6,20 @@ import (
 	"path/filepath"
 
 	"github.com/gkarolyi/mxt/internal/config"
+	mxtErrors "github.com/gkarolyi/mxt/internal/errors"
+	"github.com/gkarolyi/mxt/internal/ui"
 )
 
 const separator = "─────────────────────────────────"
 
 // ConfigCommand implements the config command
 func ConfigCommand() error {
-	// Check for global config
 	globalConfigPath := config.GetGlobalConfigPath()
+	hasAny := false
 
 	if _, err := os.Stat(globalConfigPath); err == nil {
-		fmt.Printf("Global config: %s\n", globalConfigPath)
+		hasAny = true
+		fmt.Printf("%sGlobal config:%s %s\n", ui.Bold, ui.Reset, globalConfigPath)
 		fmt.Println(separator)
 
 		content, err := os.ReadFile(globalConfigPath)
@@ -25,22 +28,16 @@ func ConfigCommand() error {
 		}
 		fmt.Print(string(content))
 		fmt.Println()
-	} else {
-		fmt.Println("No global config. Use muxtree init to create one.")
-		fmt.Println()
 	}
 
-	// Check for project config
-	gitRoot, err := config.FindGitRoot(".")
 	projectExists := false
-
+	gitRoot, err := config.FindGitRoot(".")
 	if err == nil {
-		// We're in a git repo, check for project config
 		projectConfigPath := filepath.Join(gitRoot, ".muxtree")
-
 		if _, err := os.Stat(projectConfigPath); err == nil {
+			hasAny = true
 			projectExists = true
-			fmt.Printf("Project config: %s (active)\n", projectConfigPath)
+			fmt.Printf("%sProject config:%s %s %s(active)%s\n", ui.Bold, ui.Reset, projectConfigPath, ui.Green, ui.Reset)
 			fmt.Println(separator)
 
 			content, err := os.ReadFile(projectConfigPath)
@@ -52,9 +49,13 @@ func ConfigCommand() error {
 		}
 	}
 
-	// If no project config found, show message
-	if !projectExists {
-		fmt.Println("No project config. Use muxtree init --local to create one.")
+	if hasAny && !projectExists {
+		fmt.Printf("%sNo project config. Use %s%smuxtree init --local%s%s to create one.%s\n", ui.Dim, ui.Reset, ui.Bold, ui.Reset, ui.Dim, ui.Reset)
+	}
+
+	if !hasAny {
+		ui.Warn(fmt.Sprintf("No config found. Run %smuxtree init%s to create one.", ui.Bold, ui.Reset))
+		return mxtErrors.ErrConfigNotFound{}
 	}
 
 	return nil

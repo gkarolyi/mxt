@@ -75,6 +75,44 @@ run_harness() {
   MUXTREE_CONFIG_DIR="$CONFIG_DIR" MUXTREE_PATH="$muxtree_path" MXT_PATH="$mxt_path" "$HARNESS" "$@"
 }
 
+run_init_check() {
+  local muxtree_out="$TMP_ROOT/init.muxtree.out"
+  local muxtree_err="$TMP_ROOT/init.muxtree.err"
+  local mxt_out="$TMP_ROOT/init.mxt.out"
+  local mxt_err="$TMP_ROOT/init.mxt.err"
+  local muxtree_norm="$TMP_ROOT/init.muxtree.norm"
+  local mxt_norm="$TMP_ROOT/init.mxt.norm"
+
+  set +e
+  MUXTREE_CONFIG_DIR="$CONFIG_DIR" "$INIT_MUXTREE_WRAPPER" init >"$muxtree_out" 2>"$muxtree_err"
+  local muxtree_code=$?
+  MUXTREE_CONFIG_DIR="$CONFIG_DIR" "$INIT_MXT_WRAPPER" init >"$mxt_out" 2>"$mxt_err"
+  local mxt_code=$?
+  set -e
+
+  if [[ $muxtree_code -ne $mxt_code ]]; then
+    echo "init exit codes differ: muxtree=$muxtree_code mxt=$mxt_code" >&2
+    exit 1
+  fi
+
+  sed -E 's/^# Generated on .*/# Generated on <timestamp>/' "$muxtree_out" > "$muxtree_norm"
+  sed -E 's/^# Generated on .*/# Generated on <timestamp>/' "$mxt_out" > "$mxt_norm"
+
+  if ! diff -u "$muxtree_norm" "$mxt_norm" >/dev/null; then
+    echo "init stdout differs after timestamp normalization" >&2
+    diff -u "$muxtree_norm" "$mxt_norm" || true
+    exit 1
+  fi
+
+  if ! diff -u "$muxtree_err" "$mxt_err" >/dev/null; then
+    echo "init stderr differs" >&2
+    diff -u "$muxtree_err" "$mxt_err" || true
+    exit 1
+  fi
+
+  echo "✓ init output matches (timestamp normalized)"
+}
+
 make_init_wrappers() {
   local muxtree_wrapper="$TMP_ROOT/muxtree-init-wrapper.sh"
   local mxt_wrapper="$TMP_ROOT/mxt-init-wrapper.sh"
@@ -277,7 +315,7 @@ write_config "terminal" "README.md,missing.txt" "echo \"Setup complete\"" ""
 echo "== Running non-interactive harness checks =="
 run_harness "$MUXTREE_BIN" "$MXT_BIN" help
 run_harness "$MUXTREE_BIN" "$MXT_BIN" version
-run_harness "$INIT_MUXTREE_WRAPPER" "$INIT_MXT_WRAPPER" init
+run_init_check
 
 NO_CONFIG_DIR="$TMP_ROOT/no-config"
 mkdir -p "$NO_CONFIG_DIR"

@@ -145,7 +145,7 @@ $ mxt sessions attach feature-auth
 **Setup:**
 - Repository: test-repo
 - Existing tmux session: `test-repo_feature-ui`
-- Session has custom windows: dev, server, agent
+- Session has custom windows: dev server agent
 
 **Input:**
 ```

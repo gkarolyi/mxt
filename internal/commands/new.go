@@ -16,7 +16,7 @@ import (
 	"github.com/gkarolyi/mxt/internal/ui"
 	"github.com/gkarolyi/mxt/internal/worktree"
 	"golang.org/x/term"
- )
+)
 
 // NewCommand creates a new git worktree with a new branch and launches tmux session.
 //
@@ -129,7 +129,11 @@ func NewCommand(branchName string, fromBranch string, runCmd string, bg bool) er
 	}
 
 	// Format window list for success message
-	windowList := strings.Join(sessionConfig.WindowNames, ", ")
+	separator := ", "
+	if cfg.TmuxLayout != "" {
+		separator = " "
+	}
+	windowList := strings.Join(sessionConfig.WindowNames, separator)
 	ui.Success(fmt.Sprintf("  Created session %s (windows: %s)", ui.BoldText(sessionName), windowList))
 
 	// Step 13: Open terminal (unless --bg)

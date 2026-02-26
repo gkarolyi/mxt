@@ -101,7 +101,11 @@ func sessionsOpen(branchName string, runCmd string, bg bool) error {
 	}
 
 	// Format window list for success message
-	windowList := strings.Join(sessionConfig.WindowNames, ", ")
+	separator := ", "
+	if cfg.TmuxLayout != "" {
+		separator = " "
+	}
+	windowList := strings.Join(sessionConfig.WindowNames, separator)
 	ui.Success(fmt.Sprintf("  Created session %s (windows: %s)", ui.BoldText(sessionName), windowList))
 
 	// Step 9: Open terminal (unless --bg)
@@ -111,7 +115,6 @@ func sessionsOpen(branchName string, runCmd string, bg bool) error {
 			ui.Info(fmt.Sprintf("Run: tmux attach -t %s", sessionName))
 		}
 	}
-
 
 	return nil
 }

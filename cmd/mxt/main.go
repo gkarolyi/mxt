@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
+	"os"
+
 	"github.com/gkarolyi/mxt/internal/commands"
+	mxtErrors "github.com/gkarolyi/mxt/internal/errors"
 	"github.com/gkarolyi/mxt/internal/ui"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 const version = "1.0.0"
@@ -59,6 +62,10 @@ var configCmd = &cobra.Command{
 	Short: "Show current configuration",
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := commands.ConfigCommand(); err != nil {
+			var notFound mxtErrors.ErrConfigNotFound
+			if errors.As(err, &notFound) {
+				os.Exit(1)
+			}
 			ui.Error(err.Error())
 			os.Exit(1)
 		}

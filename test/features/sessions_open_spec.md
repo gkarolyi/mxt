@@ -95,11 +95,11 @@ $ mxt sessions open feature-ui
 
 **Expected Output:**
 ```
-✓   Created session test-repo_feature-ui (windows: dev, server, agent)
+✓   Created session test-repo_feature-ui (windows: dev server agent)
 ```
 
 **Expected Side Effects:**
-- Tmux session created with custom windows (dev, server, agent)
+- Tmux session created with custom windows (dev server agent)
 - Dev window has 2 panes (hx | lazygit)
 - Server window has 1 pane running "bin/server"
 - Agent window has 1 empty pane

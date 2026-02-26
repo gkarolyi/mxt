@@ -26,12 +26,12 @@ Project config: /path/to/repo/.muxtree (active)
 [config file contents]
 ```
 
-### With No Global Config
+### With Project Config Only
 
 ```
-No global config. Use muxtree init to create one.
-
-[Project config section if exists]
+Project config: /path/to/repo/.muxtree (active)
+─────────────────────────────────
+[config file contents]
 ```
 
 ## Behavior Details
@@ -53,9 +53,9 @@ No global config. Use muxtree init to create one.
 
 ### Missing Config Messages
 
-**No global config:**
+**No config found (when neither global nor project exists):**
 ```
-No global config. Use muxtree init to create one.
+⚠ No config found. Run muxtree init to create one.
 ```
 
 **No project config (when in a repo or any directory):**
@@ -148,9 +148,7 @@ No project config. Use muxtree init --local to create one.
 ### Example 3: No Configs
 
 ```
-No global config. Use muxtree init to create one.
-
-No project config. Use muxtree init --local to create one.
+⚠ No config found. Run muxtree init to create one.
 ```
 
 ## Implementation Notes

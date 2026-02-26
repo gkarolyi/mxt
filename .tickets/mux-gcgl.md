@@ -23,3 +23,7 @@ Ran harness for help, version, init (via wrappers), config, new (basic + --run),
 **2026-02-26T00:33:08Z**
 
 Added test/run_feature_specs.sh to run full harness suite with manual checkpoints for pre-session failure, sessions attach, and terminal integration.
+
+**2026-02-26T01:00:10Z**
+
+Updated run_feature_specs.sh to normalize init timestamp line and added custom layout window list parity fixes; non-interactive portion now passes until manual prompts.
