@@ -1,6 +1,6 @@
 ---
 id: mxt-suyi
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-26T04:22:37Z
@@ -16,3 +16,9 @@ Goal: make "go install" work for installing mxt.\n\nSteps: (1) Attempt to instal
 
 "go install" succeeds for mxt using the documented command. Root cause identified and fixed. First installable release tagged v1.1.0 if release/version changes are required.
 
+
+## Notes
+
+**2026-02-26T05:04:28Z**
+
+Attempted: go install github.com/gkarolyi/mxt@latest -> module found v1.1.0 but no root package. Root cause: main package lived under cmd/mxt. Fix: moved entrypoint to root main.go, bumped version to 1.1.0, updated README install command and AGENTS. Verified: go install .; go test ./...
