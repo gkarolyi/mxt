@@ -2,11 +2,13 @@
 package config
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
+
+	"github.com/BurntSushi/toml"
 )
 
 // Config represents the mxt configuration
@@ -16,6 +18,34 @@ type Config struct {
 	CopyFiles     string
 	PreSessionCmd string
 	TmuxLayout    string
+}
+
+type tomlConfig struct {
+	WorktreeDir   *string `toml:"worktree_dir"`
+	Terminal      *string `toml:"terminal"`
+	CopyFiles     *string `toml:"copy_files"`
+	PreSessionCmd *string `toml:"pre_session_cmd"`
+	TmuxLayout    *string `toml:"tmux_layout"`
+}
+
+func (cfg tomlConfig) toMap() map[string]string {
+	config := make(map[string]string)
+	if cfg.WorktreeDir != nil {
+		config["worktree_dir"] = *cfg.WorktreeDir
+	}
+	if cfg.Terminal != nil {
+		config["terminal"] = *cfg.Terminal
+	}
+	if cfg.CopyFiles != nil {
+		config["copy_files"] = *cfg.CopyFiles
+	}
+	if cfg.PreSessionCmd != nil {
+		config["pre_session_cmd"] = *cfg.PreSessionCmd
+	}
+	if cfg.TmuxLayout != nil {
+		config["tmux_layout"] = *cfg.TmuxLayout
+	}
+	return config
 }
 
 // Load loads the configuration from defaults, global config, and project config.
@@ -45,130 +75,29 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// ParseConfig parses a config file in key=value format.
-// It handles comments (lines starting with #), empty lines, and whitespace trimming.
-// It also supports multi-line arrays with key=[...] syntax.
+// ParseConfig parses a config file in TOML format.
+// It supports standard TOML comments and validates keys.
 // Returns a map of config key-value pairs.
 func ParseConfig(r io.Reader) (map[string]string, error) {
-	config := make(map[string]string)
-	scanner := bufio.NewScanner(r)
-	lineNum := 0
-
-	var multiLineKey string
-	var multiLineValues []string
-	inMultiLine := false
-
-	for scanner.Scan() {
-		lineNum++
-		line := scanner.Text()
-
-		// Trim leading and trailing whitespace
-		line = strings.TrimSpace(line)
-
-		// Skip empty lines when not in multi-line mode
-		if line == "" && !inMultiLine {
-			continue
-		}
-
-		// Skip comments when not in multi-line mode
-		if strings.HasPrefix(line, "#") && !inMultiLine {
-			continue
-		}
-
-		// Handle multi-line array accumulation
-		if inMultiLine {
-			// Skip comments within multi-line arrays
-			if strings.HasPrefix(line, "#") {
-				continue
-			}
-
-			// Check for closing bracket
-			if line == "]" || strings.HasSuffix(line, "]") {
-				// Extract value before ]
-				if line != "]" {
-					value := strings.TrimSpace(strings.TrimSuffix(line, "]"))
-					if value != "" {
-						multiLineValues = append(multiLineValues, value)
-					}
-				}
-
-				// Join accumulated values
-				finalValue := strings.Join(multiLineValues, " ")
-
-				// Apply tmux_layout normalization if needed
-				if multiLineKey == "tmux_layout" {
-					finalValue = normalizeTmuxLayout(finalValue)
-				}
-
-				config[multiLineKey] = finalValue
-				inMultiLine = false
-				multiLineKey = ""
-				multiLineValues = nil
-				continue
-			}
-
-			// Accumulate non-empty lines
-			if line != "" {
-				multiLineValues = append(multiLineValues, line)
-			}
-			continue
-		}
-
-		// Parse key=value
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("line %d: invalid format (expected key=value): %s", lineNum, line)
-		}
-
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		// Empty key is invalid
-		if key == "" {
-			return nil, fmt.Errorf("line %d: empty key", lineNum)
-		}
-
-		// Check for multi-line array start
-		if strings.HasPrefix(value, "[") {
-			// Check if it's a single-line array [value1 value2]
-			if strings.HasSuffix(value, "]") {
-				// Single-line array
-				arrayContent := strings.TrimSpace(value[1 : len(value)-1])
-				if key == "tmux_layout" {
-					arrayContent = normalizeTmuxLayout(arrayContent)
-				}
-				config[key] = arrayContent
-				continue
-			}
-
-			// Multi-line array
-			multiLineKey = key
-			inMultiLine = true
-			// Check if there's content after the opening bracket on the same line
-			content := strings.TrimSpace(strings.TrimPrefix(value, "["))
-			if content != "" {
-				multiLineValues = append(multiLineValues, content)
-			}
-			continue
-		}
-
-		// Apply tmux_layout normalization for single-line values
-		if key == "tmux_layout" {
-			value = normalizeTmuxLayout(value)
-		}
-
-		config[key] = value
+	var raw tomlConfig
+	meta, err := toml.DecodeReader(r, &raw)
+	if err != nil {
+		return nil, err
 	}
 
-	// Check for unclosed multi-line array
-	if inMultiLine {
-		return nil, fmt.Errorf("unclosed multi-line array for key %q", multiLineKey)
+	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
+		keys := make([]string, 0, len(undecoded))
+		for _, key := range undecoded {
+			keys = append(keys, key.String())
+		}
+		sort.Strings(keys)
+		return nil, fmt.Errorf("unknown config keys: %s", strings.Join(keys, ", "))
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading config: %w", err)
+	config := raw.toMap()
+	if layout, ok := config["tmux_layout"]; ok {
+		config["tmux_layout"] = normalizeTmuxLayout(layout)
 	}
-
 	return config, nil
 }
 
@@ -177,6 +106,8 @@ func ParseConfig(r io.Reader) (map[string]string, error) {
 // Window definitions are in format: window_name:command|command
 // Multiple windows can be separated by commas, semicolons, or newlines (spaces in multi-line)
 func normalizeTmuxLayout(layout string) string {
+	layout = strings.ReplaceAll(layout, "\n", " ")
+	layout = strings.ReplaceAll(layout, "\r", " ")
 	// First, replace commas with semicolons
 	layout = strings.ReplaceAll(layout, ",", ";")
 

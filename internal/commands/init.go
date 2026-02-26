@@ -2,6 +2,7 @@ package commands
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/gkarolyi/mxt/internal/config"
 	"github.com/gkarolyi/mxt/internal/ui"
 	"golang.org/x/term"
@@ -128,8 +130,8 @@ func initGlobalConfig(reinit bool) error {
 	// Tmux layout
 	fmt.Println()
 	ui.Info("Optional: Tmux layout - define windows and panes.")
-	ui.Info("You can define this now (single line) or edit the config file for multi-line format.")
-	ui.Info("Example: dev:hx|lazygit,server:bin/server,agent:")
+	ui.Info("Enter a single line now, or edit the config file to use a TOML multi-line string.")
+	ui.Info("Example (single line): dev:hx|lazygit,server:bin/server,agent:")
 	if term.IsTerminal(int(os.Stdin.Fd())) {
 		fmt.Print("Tmux layout: ")
 	}
@@ -137,7 +139,10 @@ func initGlobalConfig(reinit bool) error {
 	tmuxLayout = strings.TrimSpace(tmuxLayout)
 
 	// Generate config file content
-	content := generateGlobalConfigContent(worktreeDir, terminal, copyFiles, preSessionCmd, tmuxLayout)
+	content, err := generateGlobalConfigContent(worktreeDir, terminal, copyFiles, preSessionCmd, tmuxLayout)
+	if err != nil {
+		return fmt.Errorf("failed to format config: %w", err)
+	}
 
 	// Write config file
 	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
@@ -202,8 +207,8 @@ func initProjectConfig(reinit bool) error {
 	// Tmux layout
 	fmt.Println()
 	ui.Info("Optional: Tmux layout - define windows and panes.")
-	ui.Info("You can define this now (single line) or edit the config file for multi-line format.")
-	ui.Info("Example: dev:hx|lazygit,server:bin/server,agent:")
+	ui.Info("Enter a single line now, or edit the config file to use a TOML multi-line string.")
+	ui.Info("Example (single line): dev:hx|lazygit,server:bin/server,agent:")
 	if term.IsTerminal(int(os.Stdin.Fd())) {
 		fmt.Print("Tmux layout: ")
 	}
@@ -211,7 +216,10 @@ func initProjectConfig(reinit bool) error {
 	tmuxLayout = strings.TrimSpace(tmuxLayout)
 
 	// Generate config file content
-	content := generateProjectConfigContent(copyFiles, preSessionCmd, tmuxLayout)
+	content, err := generateProjectConfigContent(copyFiles, preSessionCmd, tmuxLayout)
+	if err != nil {
+		return fmt.Errorf("failed to format config: %w", err)
+	}
 
 	// Write config file
 	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
@@ -226,34 +234,55 @@ func initProjectConfig(reinit bool) error {
 	return nil
 }
 
-func generateGlobalConfigContent(worktreeDir, terminal, copyFiles, preSessionCmd, tmuxLayout string) string {
+func generateGlobalConfigContent(worktreeDir, terminal, copyFiles, preSessionCmd, tmuxLayout string) (string, error) {
 	timestamp := time.Now().Format("Mon 02 Jan 2006 15:04:05 MST")
 
+	worktreeValue, err := formatTomlValue(worktreeDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode worktree_dir: %w", err)
+	}
+	terminalValue, err := formatTomlValue(terminal)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode terminal: %w", err)
+	}
+	copyFilesValue, err := formatTomlValue(copyFiles)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode copy_files: %w", err)
+	}
+	preSessionValue, err := formatTomlValue(preSessionCmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode pre_session_cmd: %w", err)
+	}
+	tmuxLayoutValue, err := formatTomlValue(tmuxLayout)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode tmux_layout: %w", err)
+	}
+
 	var sb strings.Builder
-	sb.WriteString("# mxt configuration\n")
+	sb.WriteString("# mxt configuration (TOML)\n")
 	sb.WriteString(fmt.Sprintf("# Generated on %s\n\n", timestamp))
 	sb.WriteString("# Base directory for worktrees\n")
-	sb.WriteString(fmt.Sprintf("worktree_dir=%s\n\n", worktreeDir))
+	sb.WriteString(fmt.Sprintf("worktree_dir = %s\n\n", worktreeValue))
 
 	sb.WriteString("# Terminal app: terminal | iterm2 | ghostty | current\n")
-	sb.WriteString(fmt.Sprintf("terminal=%s\n\n", terminal))
+	sb.WriteString(fmt.Sprintf("terminal = %s\n\n", terminalValue))
 
 	sb.WriteString("# Files to copy from repo root into new worktrees (comma-separated, relative to repo root)\n")
 	sb.WriteString("# Supports glob patterns and directories\n")
-	sb.WriteString(fmt.Sprintf("copy_files=%s\n\n", copyFiles))
+	sb.WriteString(fmt.Sprintf("copy_files = %s\n\n", copyFilesValue))
 
 	sb.WriteString("# Command to run after worktree setup, before tmux session (optional)\n")
 	sb.WriteString("# Runs in worktree directory. Use for setup tasks like: bundle install, npm install\n")
-	sb.WriteString(fmt.Sprintf("pre_session_cmd=%s\n\n", preSessionCmd))
+	sb.WriteString(fmt.Sprintf("pre_session_cmd = %s\n\n", preSessionValue))
 
 	sb.WriteString("# Tmux layout - define windows and panes (optional)\n")
 	sb.WriteString("# Multi-line format (more readable):\n")
-	sb.WriteString("# tmux_layout=[\n")
+	sb.WriteString("# tmux_layout = \"\"\"\n")
 	sb.WriteString("#   dev:hx|lazygit\n")
 	sb.WriteString("#   server:bin/server\n")
 	sb.WriteString("#   agent:\n")
-	sb.WriteString("# ]\n")
-	sb.WriteString("# Or single line: tmux_layout=dev:hx|lazygit,server:bin/server,agent:\n")
+	sb.WriteString("# \"\"\"\n")
+	sb.WriteString("# Or single line: tmux_layout = \"dev:hx|lazygit,server:bin/server,agent:\"\n")
 	sb.WriteString("#\n")
 	sb.WriteString("# Syntax:\n")
 	sb.WriteString("# - ',' or newline separates windows\n")
@@ -261,33 +290,46 @@ func generateGlobalConfigContent(worktreeDir, terminal, copyFiles, preSessionCmd
 	sb.WriteString("# - '|' separates panes (vertical split - side by side)\n")
 	sb.WriteString("# - Empty command = shell prompt\n")
 	sb.WriteString("# If not set, creates default layout: dev + agent windows\n")
-	sb.WriteString(fmt.Sprintf("tmux_layout=%s\n", tmuxLayout))
+	sb.WriteString(fmt.Sprintf("tmux_layout = %s\n", tmuxLayoutValue))
 
-	return sb.String()
+	return sb.String(), nil
 }
 
-func generateProjectConfigContent(copyFiles, preSessionCmd, tmuxLayout string) string {
+func generateProjectConfigContent(copyFiles, preSessionCmd, tmuxLayout string) (string, error) {
 	timestamp := time.Now().Format("Mon 02 Jan 2006 15:04:05 MST")
 
+	copyFilesValue, err := formatTomlValue(copyFiles)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode copy_files: %w", err)
+	}
+	preSessionValue, err := formatTomlValue(preSessionCmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode pre_session_cmd: %w", err)
+	}
+	tmuxLayoutValue, err := formatTomlValue(tmuxLayout)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode tmux_layout: %w", err)
+	}
+
 	var sb strings.Builder
-	sb.WriteString("# mxt project config\n")
+	sb.WriteString("# mxt project config (TOML)\n")
 	sb.WriteString(fmt.Sprintf("# Generated on %s\n\n", timestamp))
 	sb.WriteString("# Files to copy from repo root into new worktrees (comma-separated, relative to repo root)\n")
 	sb.WriteString("# Supports glob patterns and directories\n")
-	sb.WriteString(fmt.Sprintf("copy_files=%s\n\n", copyFiles))
+	sb.WriteString(fmt.Sprintf("copy_files = %s\n\n", copyFilesValue))
 
 	sb.WriteString("# Command to run after worktree setup, before tmux session (optional)\n")
 	sb.WriteString("# Runs in worktree directory. Use for setup tasks like: bundle install, npm install\n")
-	sb.WriteString(fmt.Sprintf("pre_session_cmd=%s\n\n", preSessionCmd))
+	sb.WriteString(fmt.Sprintf("pre_session_cmd = %s\n\n", preSessionValue))
 
 	sb.WriteString("# Tmux layout - define windows and panes (optional)\n")
 	sb.WriteString("# Multi-line format (more readable):\n")
-	sb.WriteString("# tmux_layout=[\n")
+	sb.WriteString("# tmux_layout = \"\"\"\n")
 	sb.WriteString("#   dev:hx|lazygit\n")
 	sb.WriteString("#   server:bin/server\n")
 	sb.WriteString("#   agent:\n")
-	sb.WriteString("# ]\n")
-	sb.WriteString("# Or single line: tmux_layout=dev:hx|lazygit,server:bin/server,agent:\n")
+	sb.WriteString("# \"\"\"\n")
+	sb.WriteString("# Or single line: tmux_layout = \"dev:hx|lazygit,server:bin/server,agent:\"\n")
 	sb.WriteString("#\n")
 	sb.WriteString("# Syntax:\n")
 	sb.WriteString("# - ',' or newline separates windows\n")
@@ -295,7 +337,21 @@ func generateProjectConfigContent(copyFiles, preSessionCmd, tmuxLayout string) s
 	sb.WriteString("# - '|' separates panes (vertical split - side by side)\n")
 	sb.WriteString("# - Empty command = shell prompt\n")
 	sb.WriteString("# If not set, creates default layout: dev + agent windows\n")
-	sb.WriteString(fmt.Sprintf("tmux_layout=%s\n", tmuxLayout))
+	sb.WriteString(fmt.Sprintf("tmux_layout = %s\n", tmuxLayoutValue))
 
-	return sb.String()
+	return sb.String(), nil
+}
+
+func formatTomlValue(value string) (string, error) {
+	var buf bytes.Buffer
+	encoder := toml.NewEncoder(&buf)
+	if err := encoder.Encode(map[string]string{"value": value}); err != nil {
+		return "", err
+	}
+	line := strings.TrimSpace(buf.String())
+	parts := strings.SplitN(line, "=", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("unexpected TOML encoding for value: %q", line)
+	}
+	return strings.TrimSpace(parts[1]), nil
 }

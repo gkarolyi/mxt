@@ -148,9 +148,9 @@ func TestLoadConfigFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config")
 
-	content := `worktree_dir=~/test-worktrees
-terminal=iterm2
-copy_files=.env,.env.local
+	content := `worktree_dir = "~/test-worktrees"
+terminal = "iterm2"
+copy_files = ".env,.env.local"
 `
 	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to create test config file: %v", err)
@@ -227,10 +227,10 @@ func TestLoadConfig(t *testing.T) {
 		t.Fatalf("Failed to create global config dir: %v", err)
 	}
 	globalConfigPath := filepath.Join(globalConfigDir, "config")
-	globalContent := `worktree_dir=~/global-worktrees
-	terminal=terminal
-	copy_files=.env
-	`
+	globalContent := `worktree_dir = "~/global-worktrees"
+terminal = "terminal"
+copy_files = ".env"
+`
 	if err := os.WriteFile(globalConfigPath, []byte(globalContent), 0o644); err != nil {
 		t.Fatalf("Failed to create global config file: %v", err)
 	}
@@ -244,8 +244,8 @@ func TestLoadConfig(t *testing.T) {
 
 	// Create project config
 	projectConfigPath := filepath.Join(tmpRepo, ".mxt")
-	projectContent := `terminal=iterm2
-copy_files=.env,.env.local,CLAUDE.md
+	projectContent := `terminal = "iterm2"
+copy_files = ".env,.env.local,CLAUDE.md"
 `
 	if err := os.WriteFile(projectConfigPath, []byte(projectContent), 0o644); err != nil {
 		t.Fatalf("Failed to create project config file: %v", err)

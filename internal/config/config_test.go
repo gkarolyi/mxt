@@ -39,13 +39,13 @@ func TestParseSingleLineKeyValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseConfig(strings.NewReader(tt.input))
+			result, err := ParseLegacyConfig(strings.NewReader(tt.input))
 			if err != nil {
-				t.Fatalf("ParseConfig() error = %v", err)
+				t.Fatalf("ParseLegacyConfig() error = %v", err)
 			}
 			for key, expectedVal := range tt.expected {
 				if result[key] != expectedVal {
-					t.Errorf("ParseConfig()[%q] = %q, want %q", key, result[key], expectedVal)
+					t.Errorf("ParseLegacyConfig()[%q] = %q, want %q", key, result[key], expectedVal)
 				}
 			}
 		})
@@ -83,13 +83,13 @@ func TestParseConfigComments(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseConfig(strings.NewReader(tt.input))
+			result, err := ParseLegacyConfig(strings.NewReader(tt.input))
 			if err != nil {
-				t.Fatalf("ParseConfig() error = %v", err)
+				t.Fatalf("ParseLegacyConfig() error = %v", err)
 			}
 			for key, expectedVal := range tt.expected {
 				if result[key] != expectedVal {
-					t.Errorf("ParseConfig()[%q] = %q, want %q", key, result[key], expectedVal)
+					t.Errorf("ParseLegacyConfig()[%q] = %q, want %q", key, result[key], expectedVal)
 				}
 			}
 		})
@@ -132,13 +132,13 @@ func TestParseConfigWhitespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseConfig(strings.NewReader(tt.input))
+			result, err := ParseLegacyConfig(strings.NewReader(tt.input))
 			if err != nil {
-				t.Fatalf("ParseConfig() error = %v", err)
+				t.Fatalf("ParseLegacyConfig() error = %v", err)
 			}
 			for key, expectedVal := range tt.expected {
 				if result[key] != expectedVal {
-					t.Errorf("ParseConfig()[%q] = %q, want %q", key, result[key], expectedVal)
+					t.Errorf("ParseLegacyConfig()[%q] = %q, want %q", key, result[key], expectedVal)
 				}
 			}
 		})
@@ -171,13 +171,13 @@ func TestParseConfigEmptyLines(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseConfig(strings.NewReader(tt.input))
+			result, err := ParseLegacyConfig(strings.NewReader(tt.input))
 			if err != nil {
-				t.Fatalf("ParseConfig() error = %v", err)
+				t.Fatalf("ParseLegacyConfig() error = %v", err)
 			}
 			for key, expectedVal := range tt.expected {
 				if result[key] != expectedVal {
-					t.Errorf("ParseConfig()[%q] = %q, want %q", key, result[key], expectedVal)
+					t.Errorf("ParseLegacyConfig()[%q] = %q, want %q", key, result[key], expectedVal)
 				}
 			}
 		})
@@ -210,12 +210,12 @@ func TestParseConfigInvalidFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseConfig(strings.NewReader(tt.input))
+			_, err := ParseLegacyConfig(strings.NewReader(tt.input))
 			if tt.shouldError && err == nil {
-				t.Errorf("ParseConfig() expected error but got none")
+				t.Errorf("ParseLegacyConfig() expected error but got none")
 			}
 			if !tt.shouldError && err != nil {
-				t.Errorf("ParseConfig() unexpected error = %v", err)
+				t.Errorf("ParseLegacyConfig() unexpected error = %v", err)
 			}
 		})
 	}
@@ -223,12 +223,12 @@ func TestParseConfigInvalidFormat(t *testing.T) {
 
 // TestParseConfigEmpty tests empty input
 func TestParseConfigEmpty(t *testing.T) {
-	result, err := ParseConfig(strings.NewReader(""))
+	result, err := ParseLegacyConfig(strings.NewReader(""))
 	if err != nil {
-		t.Fatalf("ParseConfig() error = %v", err)
+		t.Fatalf("ParseLegacyConfig() error = %v", err)
 	}
 	if len(result) != 0 {
-		t.Errorf("ParseConfig() = %v, want empty map", result)
+		t.Errorf("ParseLegacyConfig() = %v, want empty map", result)
 	}
 }
 
@@ -261,7 +261,7 @@ func TestParseMultiLineArray(t *testing.T) {
 			},
 		},
 		{
-			name: "single-line array format",
+			name:  "single-line array format",
 			input: `copy_files=[.env .env.local CLAUDE.md]`,
 			expected: map[string]string{
 				"copy_files": ".env .env.local CLAUDE.md",
@@ -306,13 +306,13 @@ terminal=iterm2`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseConfig(strings.NewReader(tt.input))
+			result, err := ParseLegacyConfig(strings.NewReader(tt.input))
 			if err != nil {
-				t.Fatalf("ParseConfig() error = %v", err)
+				t.Fatalf("ParseLegacyConfig() error = %v", err)
 			}
 			for key, expectedVal := range tt.expected {
 				if result[key] != expectedVal {
-					t.Errorf("ParseConfig()[%q] = %q, want %q", key, result[key], expectedVal)
+					t.Errorf("ParseLegacyConfig()[%q] = %q, want %q", key, result[key], expectedVal)
 				}
 			}
 		})
@@ -327,8 +327,8 @@ func TestParseTmuxLayoutNormalization(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "commas to semicolons",
-			input: `tmux_layout=dev:hx|lazygit,server:bin/server,agent:`,
+			name:     "commas to semicolons",
+			input:    `tmux_layout=dev:hx|lazygit,server:bin/server,agent:`,
 			expected: "dev:hx|lazygit;server:bin/server;agent:",
 		},
 		{
@@ -341,25 +341,25 @@ func TestParseTmuxLayoutNormalization(t *testing.T) {
 			expected: "dev:hx|lazygit;server:bin/server;agent:",
 		},
 		{
-			name: "single-line array format",
-			input: `tmux_layout=[dev:hx|lazygit server:bin/server agent:]`,
+			name:     "single-line array format",
+			input:    `tmux_layout=[dev:hx|lazygit server:bin/server agent:]`,
 			expected: "dev:hx|lazygit;server:bin/server;agent:",
 		},
 		{
-			name: "mixed separators normalized",
-			input: `tmux_layout=dev:hx,server:bin/server,agent:`,
+			name:     "mixed separators normalized",
+			input:    `tmux_layout=dev:hx,server:bin/server,agent:`,
 			expected: "dev:hx;server:bin/server;agent:",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParseConfig(strings.NewReader(tt.input))
+			result, err := ParseLegacyConfig(strings.NewReader(tt.input))
 			if err != nil {
-				t.Fatalf("ParseConfig() error = %v", err)
+				t.Fatalf("ParseLegacyConfig() error = %v", err)
 			}
 			if result["tmux_layout"] != tt.expected {
-				t.Errorf("ParseConfig()[tmux_layout] = %q, want %q", result["tmux_layout"], tt.expected)
+				t.Errorf("ParseLegacyConfig()[tmux_layout] = %q, want %q", result["tmux_layout"], tt.expected)
 			}
 		})
 	}
@@ -388,12 +388,12 @@ func TestParseMultiLineArrayErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseConfig(strings.NewReader(tt.input))
+			_, err := ParseLegacyConfig(strings.NewReader(tt.input))
 			if tt.shouldError && err == nil {
-				t.Errorf("ParseConfig() expected error but got none")
+				t.Errorf("ParseLegacyConfig() expected error but got none")
 			}
 			if !tt.shouldError && err != nil {
-				t.Errorf("ParseConfig() unexpected error = %v", err)
+				t.Errorf("ParseLegacyConfig() unexpected error = %v", err)
 			}
 		})
 	}

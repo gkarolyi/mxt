@@ -74,6 +74,17 @@ var configCmd = &cobra.Command{
 	},
 }
 
+var configMigrateCmd = &cobra.Command{
+	Use:   "migrate",
+	Short: "Convert legacy config to TOML",
+	Run: func(cmd *cobra.Command, args []string) {
+		if err := commands.ConfigMigrateCommand(); err != nil {
+			ui.Error(err.Error())
+			os.Exit(1)
+		}
+	},
+}
+
 var newCmd = &cobra.Command{
 	Use:   "new [branch-name]",
 	Short: "Create worktree + tmux session",
@@ -214,6 +225,8 @@ func init() {
 	// Add flags for sessions command
 	sessionsCmd.Flags().String("run", "", "Auto-run command in agent window (claude|codex)")
 	sessionsCmd.Flags().Bool("bg", false, "Create session without opening terminal")
+
+	configCmd.AddCommand(configMigrateCmd)
 
 	// Add subcommands to root
 	rootCmd.AddCommand(versionCmd)

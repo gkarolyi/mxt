@@ -126,10 +126,10 @@ Each worktree is a fully independent working directory — separate branch, sepa
 
 ### `mxt init`
 
-Interactive setup. Creates `~/.mxt/config` where you specify:
+Interactive setup. Creates `~/.mxt/config` (TOML) where you specify:
 
 - **Worktree base directory** — where all worktrees live (e.g. `~/worktrees`)
-- **Terminal app** — `terminal` (Terminal.app) or `iterm2`
+- **Terminal app** — `terminal` (Terminal.app), `iterm2`, `ghostty`, or `current`
 - **Files to copy** — comma-separated list of files to copy from your repo root into each new worktree (e.g. `.env,.env.local,CLAUDE.md`)
 
 ```bash
@@ -239,7 +239,11 @@ mxt sessions attach feature-auth agent
 
 ### `mxt config`
 
-Shows both global (`~/.mxt/config`) and project-local (`.mxt`) config files, labeling which one is active. Useful for debugging which settings are in effect.
+Shows both global (`~/.mxt/config`) and project-local (`.mxt`) config files, labeling which one is active. Useful for debugging which settings are in effect. Use `mxt config migrate` to convert legacy key=value configs to TOML.
+
+### `mxt config migrate`
+
+Converts legacy key=value config files to TOML in place (global and project). Safe to run multiple times.
 
 ### `mxt version`
 
@@ -253,28 +257,30 @@ Show all commands and usage. Also available as `mxt -h` or `mxt --help`.
 
 ## Configuration
 
-Config lives at `~/.mxt/config` (override with `MXT_CONFIG_DIR`). It's a plain key=value file:
+Config lives at `~/.mxt/config` (override with `MXT_CONFIG_DIR`). It's a TOML file:
 
-```ini
-# mxt configuration
+```toml
+# mxt configuration (TOML)
 
 # Base directory for worktrees
-worktree_dir=~/worktrees
+worktree_dir = "~/worktrees"
 
-# Terminal app: terminal | iterm2
-terminal=iterm2
+# Terminal app: terminal | iterm2 | ghostty | current
+terminal = "iterm2"
 
 # Files to copy from repo root into new worktrees (comma-separated)
 # Supports glob patterns
-copy_files=.env,.env.local,CLAUDE.md,.claude/settings.json
+copy_files = ".env,.env.local,CLAUDE.md,.claude/settings.json"
 ```
+
+Legacy key=value configs can be converted with `mxt config migrate`.
 
 ### Config options
 
 | Key | Default | Description |
 |-----|---------|-------------|
 | `worktree_dir` | `~/worktrees` | Base directory where worktrees are created. Organized as `<worktree_dir>/<repo>/<branch>/` |
-| `terminal` | `terminal` | Which terminal app to open: `terminal` (Terminal.app) or `iterm2` |
+| `terminal` | `terminal` | Which terminal app to open: `terminal` (Terminal.app), `iterm2`, `ghostty`, or `current` |
 | `copy_files` | *(empty)* | Comma-separated list of files/globs to copy from repo root into new worktrees |
 
 ### Project-local config
@@ -286,21 +292,21 @@ You can create a `.mxt` file in your repo root to override global settings on a 
 mxt init --local
 ```
 
-The local config file uses the same key=value format. When present, local values override the global config.
+The local config file uses the same TOML format. When present, local values override the global config.
 
 ### Glob patterns in copy_files
 
 The `copy_files` value supports shell glob patterns:
 
-```ini
+```toml
 # Copy specific files
-copy_files=.env,.env.local
+copy_files = ".env,.env.local"
 
 # Copy all dotenv files
-copy_files=.env*
+copy_files = ".env*"
 
 # Mix of specific files and patterns
-copy_files=.env*,CLAUDE.md,config/*.local.json
+copy_files = ".env*,CLAUDE.md,config/*.local.json"
 ```
 
 ### Command aliases
