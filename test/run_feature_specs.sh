@@ -31,13 +31,38 @@ CONFIG_DIR="$TMP_ROOT/config"
 WORKTREE_DIR="$TMP_ROOT/worktrees"
 TEST_REPO="$TMP_ROOT/testrepo"
 INIT_INPUT="$TMP_ROOT/init-input.txt"
+LOG_DIR="$TMP_ROOT/logs"
+SUMMARY_LOG="$LOG_DIR/summary.log"
+FAILURE_LOG="$LOG_DIR/failures.log"
+FAILURES=0
+KEEP_LOGS="${KEEP_LOGS:-1}"
 
 cleanup() {
   rm -rf "$TMP_ROOT"
 }
-trap cleanup EXIT
 
-mkdir -p "$CONFIG_DIR" "$WORKTREE_DIR" "$TEST_REPO"
+if [[ "$KEEP_LOGS" != "1" ]]; then
+  trap cleanup EXIT
+fi
+
+mkdir -p "$CONFIG_DIR" "$WORKTREE_DIR" "$TEST_REPO" "$LOG_DIR"
+: > "$SUMMARY_LOG"
+: > "$FAILURE_LOG"
+
+sanitize_label() {
+  echo "$1" | tr ' /' '__'
+}
+
+log_result() {
+  local label="$1"
+  local status="$2"
+  local log_file="$3"
+  printf "%s\t%s\t%s\n" "$status" "$label" "$log_file" >> "$SUMMARY_LOG"
+  if [[ "$status" != "PASS" ]]; then
+    printf "%s\t%s\n" "$label" "$log_file" >> "$FAILURE_LOG"
+    FAILURES=$((FAILURES + 1))
+  fi
+}
 
 init_repo() {
   pushd "$TEST_REPO" >/dev/null
@@ -69,19 +94,44 @@ EOF
 }
 
 run_harness() {
-  local muxtree_path="$1"
-  local mxt_path="$2"
-  shift 2
-  MUXTREE_CONFIG_DIR="$CONFIG_DIR" MUXTREE_PATH="$muxtree_path" MXT_PATH="$mxt_path" "$HARNESS" "$@"
+  local label="$1"
+  local muxtree_path="$2"
+  local mxt_path="$3"
+  shift 3
+  local safe_label
+  safe_label="$(sanitize_label "$label")"
+  local log_file="$LOG_DIR/${safe_label}.log"
+
+  echo "== $label =="
+
+  set +e
+  MUXTREE_CONFIG_DIR="$CONFIG_DIR" MUXTREE_PATH="$muxtree_path" MXT_PATH="$mxt_path" "$HARNESS" "$@" >"$log_file" 2>&1
+  local status=$?
+  set -e
+
+  cat "$log_file"
+
+  if [[ $status -eq 0 ]]; then
+    log_result "$label" "PASS" "$log_file"
+  else
+    log_result "$label" "FAIL" "$log_file"
+  fi
 }
 
 run_init_check() {
+  local label="init"
+  local safe_label
+  safe_label="$(sanitize_label "$label")"
+  local log_file="$LOG_DIR/${safe_label}.log"
   local muxtree_out="$TMP_ROOT/init.muxtree.out"
   local muxtree_err="$TMP_ROOT/init.muxtree.err"
   local mxt_out="$TMP_ROOT/init.mxt.out"
   local mxt_err="$TMP_ROOT/init.mxt.err"
   local muxtree_norm="$TMP_ROOT/init.muxtree.norm"
   local mxt_norm="$TMP_ROOT/init.mxt.norm"
+  local status="PASS"
+
+  echo "== $label (timestamp normalized) =="
 
   set +e
   MUXTREE_CONFIG_DIR="$CONFIG_DIR" "$INIT_MUXTREE_WRAPPER" init >"$muxtree_out" 2>"$muxtree_err"
@@ -90,27 +140,56 @@ run_init_check() {
   local mxt_code=$?
   set -e
 
+  {
+    echo "muxtree exit code: $muxtree_code"
+    echo "mxt exit code: $mxt_code"
+    echo ""
+    echo "muxtree stdout:"
+    cat "$muxtree_out"
+    echo ""
+    echo "muxtree stderr:"
+    cat "$muxtree_err"
+    echo ""
+    echo "mxt stdout:"
+    cat "$mxt_out"
+    echo ""
+    echo "mxt stderr:"
+    cat "$mxt_err"
+    echo ""
+  } > "$log_file"
+
   if [[ $muxtree_code -ne $mxt_code ]]; then
-    echo "init exit codes differ: muxtree=$muxtree_code mxt=$mxt_code" >&2
-    exit 1
+    status="FAIL"
   fi
 
   sed -E 's/^# Generated on .*/# Generated on <timestamp>/' "$muxtree_out" > "$muxtree_norm"
   sed -E 's/^# Generated on .*/# Generated on <timestamp>/' "$mxt_out" > "$mxt_norm"
 
   if ! diff -u "$muxtree_norm" "$mxt_norm" >/dev/null; then
-    echo "init stdout differs after timestamp normalization" >&2
-    diff -u "$muxtree_norm" "$mxt_norm" || true
-    exit 1
+    status="FAIL"
+    {
+      echo "Timestamp-normalized stdout diff:"
+      diff -u "$muxtree_norm" "$mxt_norm" || true
+      echo ""
+    } >> "$log_file"
   fi
 
   if ! diff -u "$muxtree_err" "$mxt_err" >/dev/null; then
-    echo "init stderr differs" >&2
-    diff -u "$muxtree_err" "$mxt_err" || true
-    exit 1
+    status="FAIL"
+    {
+      echo "stderr diff:"
+      diff -u "$muxtree_err" "$mxt_err" || true
+      echo ""
+    } >> "$log_file"
   fi
 
-  echo "✓ init output matches (timestamp normalized)"
+  cat "$log_file"
+
+  if [[ "$status" == "PASS" ]]; then
+    log_result "$label" "PASS" "$log_file"
+  else
+    log_result "$label" "FAIL" "$log_file"
+  fi
 }
 
 make_init_wrappers() {
@@ -247,39 +326,81 @@ EOF
   STATEFUL_MXT_WRAPPER="$mxt_wrapper"
 }
 
-confirm() {
-  local prompt="$1"
-  read -r -p "$prompt [y/N] " response
-  if [[ ! "$response" =~ ^[Yy]$ ]]; then
-    echo "Aborted by user" >&2
-    exit 1
+ask_match() {
+  local label="$1"
+  local log_file="$2"
+  local prompt="$3"
+  local response
+
+  if ! read -r -p "$prompt [y/N] " response; then
+    echo "No input received; recording mismatch." | tee -a "$log_file"
+    log_result "$label" "FAIL" "$log_file"
+    return
+  fi
+  if [[ "$response" =~ ^[Yy]$ ]]; then
+    log_result "$label" "PASS" "$log_file"
+  else
+    log_result "$label" "FAIL" "$log_file"
   fi
 }
 
 manual_compare() {
-  local title="$1"
+  local label="$1"
   local muxtree_cmd="$2"
   local mxt_cmd="$3"
   local instructions="$4"
+  local cleanup_cmd="${5:-}"
+  local safe_label
+  safe_label="$(sanitize_label "$label")"
+  local log_file="$LOG_DIR/${safe_label}.log"
+  local muxtree_out="$LOG_DIR/${safe_label}.muxtree.out"
+  local muxtree_err="$LOG_DIR/${safe_label}.muxtree.err"
+  local mxt_out="$LOG_DIR/${safe_label}.mxt.out"
+  local mxt_err="$LOG_DIR/${safe_label}.mxt.err"
 
   echo ""
-  echo "MANUAL CHECK: $title"
+  echo "== MANUAL CHECK: $label =="
   echo "$instructions"
-  confirm "Run muxtree command now?"
-  set +e
-  eval "$muxtree_cmd"
-  local muxtree_status=$?
-  set -e
-  echo "muxtree exit code: $muxtree_status"
-  confirm "Did muxtree behavior match expectations?"
 
-  confirm "Run mxt command now?"
   set +e
-  eval "$mxt_cmd"
-  local mxt_status=$?
+  eval "$muxtree_cmd" >"$muxtree_out" 2>"$muxtree_err"
+  local muxtree_code=$?
+
+  if [[ -n "$cleanup_cmd" ]]; then
+    eval "$cleanup_cmd"
+  fi
+
+  eval "$mxt_cmd" >"$mxt_out" 2>"$mxt_err"
+  local mxt_code=$?
   set -e
-  echo "mxt exit code: $mxt_status"
-  confirm "Did mxt behavior match muxtree?"
+
+  {
+    echo "=== muxtree exit code: $muxtree_code ==="
+    echo "=== muxtree stdout ==="
+    cat "$muxtree_out"
+    echo ""
+    echo "=== muxtree stderr ==="
+    cat "$muxtree_err"
+    echo ""
+    echo "=== mxt exit code: $mxt_code ==="
+    echo "=== mxt stdout ==="
+    cat "$mxt_out"
+    echo ""
+    echo "=== mxt stderr ==="
+    cat "$mxt_err"
+    echo ""
+    echo "Log saved to: $log_file"
+  } > "$log_file"
+
+  cat "$log_file"
+
+  if [[ $muxtree_code -ne $mxt_code ]]; then
+    echo "Exit codes differ; recording mismatch." >> "$log_file"
+    log_result "$label" "FAIL" "$log_file"
+    return
+  fi
+
+  ask_match "$label" "$log_file" "Do the outputs and behavior match?"
 }
 
 cleanup_branch() {
@@ -313,70 +434,78 @@ REPO_NAME="$(basename "$TEST_REPO")"
 write_config "terminal" "README.md,missing.txt" "echo \"Setup complete\"" ""
 
 echo "== Running non-interactive harness checks =="
-run_harness "$MUXTREE_BIN" "$MXT_BIN" help
-run_harness "$MUXTREE_BIN" "$MXT_BIN" version
+run_harness "help" "$MUXTREE_BIN" "$MXT_BIN" help
+run_harness "version" "$MUXTREE_BIN" "$MXT_BIN" version
 run_init_check
 
 NO_CONFIG_DIR="$TMP_ROOT/no-config"
 mkdir -p "$NO_CONFIG_DIR"
-MUXTREE_CONFIG_DIR="$NO_CONFIG_DIR" MUXTREE_PATH="$MUXTREE_BIN" MXT_PATH="$MXT_BIN" "$HARNESS" config
+MUXTREE_CONFIG_DIR="$NO_CONFIG_DIR" MUXTREE_PATH="$MUXTREE_BIN" MXT_PATH="$MXT_BIN" "$HARNESS" config >"$LOG_DIR/config-no-config.log" 2>&1
+cat "$LOG_DIR/config-no-config.log"
+if grep -q "FEATURE PARITY ACHIEVED" "$LOG_DIR/config-no-config.log"; then
+  log_result "config-no-config" "PASS" "$LOG_DIR/config-no-config.log"
+else
+  log_result "config-no-config" "FAIL" "$LOG_DIR/config-no-config.log"
+fi
 
 write_config "terminal" "README.md" "" ""
-run_harness "$MUXTREE_BIN" "$MXT_BIN" config
+run_harness "config-global" "$MUXTREE_BIN" "$MXT_BIN" config
 
 cat > "$TEST_REPO/.muxtree" <<EOF
 copy_files=README.md,CLAUDE.md
 pre_session_cmd=
 tmux_layout=
 EOF
-run_harness "$MUXTREE_BIN" "$MXT_BIN" config
+run_harness "config-global-project" "$MUXTREE_BIN" "$MXT_BIN" config
 rm -f "$TEST_REPO/.muxtree"
 
 write_config "terminal" "README.md,missing.txt" "echo \"Setup complete\"" ""
-run_harness "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" new feature-basic --bg
-run_harness "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" new feature-run --run claude --bg
-run_harness "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" new feature-from --from develop --bg
+run_harness "new-basic" "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" new feature-basic --bg
+run_harness "new-run" "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" new feature-run --run claude --bg
+run_harness "new-from" "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" new feature-from --from develop --bg
 
 write_config "terminal" "README.md" "" "dev:hx|lazygit,agent:"
-run_harness "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" new feature-layout --bg
+run_harness "new-custom-layout" "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" new feature-layout --bg
 
 write_config "terminal" "README.md" "false" ""
-manual_compare "Pre-session command failure" \
+manual_compare "pre-session failure" \
   "MUXTREE_CONFIG_DIR=$CONFIG_DIR $MUXTREE_BIN new feature-fail --bg" \
   "MUXTREE_CONFIG_DIR=$CONFIG_DIR $MXT_BIN new feature-fail --bg" \
-  "When prompted, answer 'n' to abort. Verify warning and abort message match muxtree." 
+  "When prompted, answer 'n' to abort. Compare the warning and abort message outputs, then detach if needed." \
+  "cleanup_branch \"$TEST_REPO\" \"$REPO_NAME\" \"feature-fail\""
 cleanup_branch "$TEST_REPO" "$REPO_NAME" "feature-fail"
 
 write_config "terminal" "README.md" "" ""
 rm -rf "$WORKTREE_DIR/$REPO_NAME"
-run_harness "$MUXTREE_BIN" "$MXT_BIN" list
+run_harness "list-empty" "$MUXTREE_BIN" "$MXT_BIN" list
 
 git worktree add -b feature-list "$WORKTREE_DIR/$REPO_NAME/feature-list" main >/dev/null
-run_harness "$MUXTREE_BIN" "$MXT_BIN" list
+run_harness "list-single" "$MUXTREE_BIN" "$MXT_BIN" list
 cleanup_branch "$TEST_REPO" "$REPO_NAME" "feature-list"
 
 write_config "terminal" "README.md" "" ""
-run_harness "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" sessions open feature-session --bg
-run_harness "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" sessions close feature-session
-run_harness "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" sessions relaunch feature-session --bg
+run_harness "sessions-open" "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" sessions open feature-session --bg
+run_harness "sessions-close" "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" sessions close feature-session
+run_harness "sessions-relaunch" "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" sessions relaunch feature-session --bg
 
 write_config "terminal" "README.md" "" ""
-run_harness "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" delete feature-delete --force
+run_harness "delete-force" "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" delete feature-delete --force
 
 write_config "terminal" "README.md" "" ""
-run_harness "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" new feature-attach --bg
+run_harness "new-attach" "$STATEFUL_MUXTREE_WRAPPER" "$STATEFUL_MXT_WRAPPER" new feature-attach --bg
 manual_compare "sessions attach" \
   "MUXTREE_CONFIG_DIR=$CONFIG_DIR $MUXTREE_BIN sessions attach feature-attach" \
   "MUXTREE_CONFIG_DIR=$CONFIG_DIR $MXT_BIN sessions attach feature-attach" \
-  "This will attach to tmux in the current terminal. Detach with Ctrl-b d, then confirm behavior matches." 
+  "This will attach to tmux in the current terminal. Detach with Ctrl-b d, then compare outputs above." 
 cleanup_branch "$TEST_REPO" "$REPO_NAME" "feature-attach"
 
 for terminal in terminal iterm2 ghostty current; do
   write_config "$terminal" "README.md" "" ""
-  manual_compare "Terminal integration ($terminal)" \
+  manual_compare "terminal integration ($terminal)" \
     "MUXTREE_CONFIG_DIR=$CONFIG_DIR $MUXTREE_BIN new terminal-$terminal" \
     "MUXTREE_CONFIG_DIR=$CONFIG_DIR $MXT_BIN new terminal-$terminal" \
-    "Verify terminal launching/attach behavior. Detach from tmux if needed before continuing." 
+    "Verify the terminal open/attach behavior and output messages. Close any spawned windows if needed." \
+    "cleanup_branch \"$TEST_REPO\" \"$REPO_NAME\" \"terminal-$terminal\""
   cleanup_branch "$TEST_REPO" "$REPO_NAME" "terminal-$terminal"
 done
 
@@ -384,3 +513,14 @@ popd >/dev/null
 
 echo ""
 echo "Feature spec run complete."
+echo "Summary log: $SUMMARY_LOG"
+echo "Failure log: $FAILURE_LOG"
+echo "Logs directory: $LOG_DIR"
+if [[ "$KEEP_LOGS" == "1" ]]; then
+  echo "Temporary workspace preserved at: $TMP_ROOT"
+fi
+
+if [[ $FAILURES -ne 0 ]]; then
+  echo "FAILURES: $FAILURES"
+  exit 1
+fi

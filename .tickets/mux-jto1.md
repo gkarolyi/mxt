@@ -31,3 +31,7 @@ Created test/run_feature_specs.sh to automate harness runs and prompt for manual
 **2026-02-26T01:00:04Z**
 
 Fixed config no-config output to match muxtree (warn + exit 1), adjusted custom layout window list separator (space-separated) in new/sessions, and updated specs + runner init normalization.
+
+**2026-02-26T01:17:12Z**
+
+Refined run_feature_specs.sh prompts: auto-runs interactive commands, shows clearly labeled outputs, logs results, and continues through mismatches.

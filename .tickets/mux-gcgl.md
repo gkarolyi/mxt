@@ -27,3 +27,7 @@ Added test/run_feature_specs.sh to run full harness suite with manual checkpoint
 **2026-02-26T01:00:10Z**
 
 Updated run_feature_specs.sh to normalize init timestamp line and added custom layout window list parity fixes; non-interactive portion now passes until manual prompts.
+
+**2026-02-26T01:17:06Z**
+
+Updated run_feature_specs.sh: auto-runs manual commands, logs stdout/stderr/exit codes, continues on mismatches, and records summary/failure logs.
