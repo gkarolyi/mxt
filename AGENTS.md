@@ -114,6 +114,7 @@ Custom layouts are parsed into windows/panes and created via tmux. The first pan
 Both use the same TOML format with the same keys:
 - `worktree_dir`: Base directory for worktrees
 - `terminal`: Which terminal app to use
+- `sandbox_tool`: Optional command prefix to run tmux in a sandbox
 - `copy_files`: Comma-separated list or TOML array of files/globs to copy
 - `pre_session_cmd`: Command to run after worktree setup
 - `tmux_layout`: Custom window/pane layout

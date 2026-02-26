@@ -130,12 +130,14 @@ Interactive setup. Creates `~/.mxt/config.toml` (TOML) where you specify:
 
 - **Worktree base directory** — where all worktrees live (e.g. `~/worktrees`)
 - **Terminal app** — `terminal` (Terminal.app), `iterm2`, `ghostty`, or `current`
+- **Sandbox tool** — optional command prefix to run tmux in a sandbox (e.g. `firejail --private`, `docker run --rm -it ...`)
 - **Files to copy** — comma-separated list of files to copy from your repo root into each new worktree (e.g. `.env,.env.local,CLAUDE.md`)
 
 ```bash
 $ mxt init
 Worktree base directory [~/worktrees]: ~/worktrees
 Terminal app (terminal/iterm2) [terminal]: iterm2
+Sandbox tool (firejail/docker, optional) [none]:
 Files to copy: .env,.env.local,.claude/settings.json
 ✓ Config written to ~/.mxt/config.toml
 ```
@@ -268,6 +270,9 @@ worktree_dir = "~/worktrees"
 
 # Terminal app: terminal | iterm2 | ghostty | current
 terminal = "iterm2"
+# Optional sandbox tool command prefix for tmux sessions
+sandbox_tool = "firejail --private"
+
 
 # Files to copy from repo root into new worktrees (string or array)
 # Supports glob patterns
@@ -288,6 +293,7 @@ Legacy key=value configs can be converted with `mxt init --import`.
 |-----|---------|-------------|
 | `worktree_dir` | `~/worktrees` | Base directory where worktrees are created. Organized as `<worktree_dir>/<repo>/<branch>/` |
 | `terminal` | `terminal` | Which terminal app to open: `terminal` (Terminal.app), `iterm2`, `ghostty`, or `current` |
+| `sandbox_tool` | *(empty)* | Optional command prefix to run tmux in a sandbox (e.g. `firejail --private`) |
 | `copy_files` | *(empty)* | Comma-separated list or TOML array of files/globs to copy from repo root into new worktrees |
 | `pre_session_cmd` | *(empty)* | Command to run after worktree setup, before tmux session |
 | `tmux_layout` | *(empty)* | Custom tmux window/pane layout (string or array) |

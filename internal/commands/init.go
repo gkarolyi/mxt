@@ -129,6 +129,7 @@ func initGlobalConfig(reinit bool, importLegacy bool) error {
 
 	worktreeDir := defaults["worktree_dir"]
 	terminal := defaults["terminal"]
+	sandboxTool := defaults["sandbox_tool"]
 
 	fmt.Println()
 
@@ -148,6 +149,22 @@ func initGlobalConfig(reinit bool, importLegacy bool) error {
 	inputTerm = strings.TrimSpace(inputTerm)
 	if inputTerm != "" {
 		terminal = inputTerm
+	}
+	displaySandbox := sandboxTool
+	if displaySandbox == "" {
+		displaySandbox = "none"
+	}
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		fmt.Printf("Sandbox tool (firejail/docker, optional) [%s]: ", displaySandbox)
+	}
+	inputSandbox, _ := reader.ReadString('\n')
+	inputSandbox = strings.TrimSpace(inputSandbox)
+	if inputSandbox != "" {
+		if inputSandbox == "none" {
+			sandboxTool = ""
+		} else {
+			sandboxTool = inputSandbox
+		}
 	}
 
 	fmt.Println()
@@ -183,7 +200,7 @@ func initGlobalConfig(reinit bool, importLegacy bool) error {
 	tmuxLayout = strings.TrimSpace(tmuxLayout)
 
 	// Generate config file content
-	content, err := generateGlobalConfigContent(worktreeDir, terminal, copyFiles, preSessionCmd, tmuxLayout)
+	content, err := generateGlobalConfigContent(worktreeDir, terminal, sandboxTool, copyFiles, preSessionCmd, tmuxLayout)
 	if err != nil {
 		return fmt.Errorf("failed to format config: %w", err)
 	}
@@ -257,6 +274,15 @@ func initProjectConfig(reinit bool, importLegacy bool) error {
 	}
 	preSessionCmd, _ := reader.ReadString('\n')
 	preSessionCmd = strings.TrimSpace(preSessionCmd)
+	// Sandbox tool
+	fmt.Println()
+	ui.Info("Optional: Sandbox tool command prefix for tmux sessions.")
+	ui.Info("Example: firejail --private, docker run --rm -it ...")
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		fmt.Print("Sandbox tool: ")
+	}
+	sandboxTool, _ := reader.ReadString('\n')
+	sandboxTool = strings.TrimSpace(sandboxTool)
 
 	// Tmux layout
 	fmt.Println()
@@ -270,7 +296,7 @@ func initProjectConfig(reinit bool, importLegacy bool) error {
 	tmuxLayout = strings.TrimSpace(tmuxLayout)
 
 	// Generate config file content
-	content, err := generateProjectConfigContent(copyFiles, preSessionCmd, tmuxLayout)
+	content, err := generateProjectConfigContent(copyFiles, sandboxTool, preSessionCmd, tmuxLayout)
 	if err != nil {
 		return fmt.Errorf("failed to format config: %w", err)
 	}
@@ -288,7 +314,7 @@ func initProjectConfig(reinit bool, importLegacy bool) error {
 	return nil
 }
 
-func generateGlobalConfigContent(worktreeDir, terminal, copyFiles, preSessionCmd, tmuxLayout string) (string, error) {
+func generateGlobalConfigContent(worktreeDir, terminal, sandboxTool, copyFiles, preSessionCmd, tmuxLayout string) (string, error) {
 	timestamp := time.Now().Format("Mon 02 Jan 2006 15:04:05 MST")
 
 	worktreeValue, err := formatTomlValue(worktreeDir)
@@ -298,6 +324,10 @@ func generateGlobalConfigContent(worktreeDir, terminal, copyFiles, preSessionCmd
 	terminalValue, err := formatTomlValue(terminal)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode terminal: %w", err)
+	}
+	sandboxValue, err := formatTomlValue(sandboxTool)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode sandbox_tool: %w", err)
 	}
 	copyFilesValue, err := formatTomlValue(copyFiles)
 	if err != nil {
@@ -320,6 +350,9 @@ func generateGlobalConfigContent(worktreeDir, terminal, copyFiles, preSessionCmd
 
 	sb.WriteString("# Terminal app: terminal | iterm2 | ghostty | current\n")
 	sb.WriteString(fmt.Sprintf("terminal = %s\n\n", terminalValue))
+	sb.WriteString("# Optional sandbox tool command prefix for tmux sessions\n")
+	sb.WriteString("# Example: firejail --private, docker run --rm -it ...\n")
+	sb.WriteString(fmt.Sprintf("sandbox_tool = %s\n\n", sandboxValue))
 
 	sb.WriteString("# Files to copy from repo root into new worktrees (comma-separated, relative to repo root)\n")
 	sb.WriteString("# Supports glob patterns and directories\n")
@@ -349,12 +382,16 @@ func generateGlobalConfigContent(worktreeDir, terminal, copyFiles, preSessionCmd
 	return sb.String(), nil
 }
 
-func generateProjectConfigContent(copyFiles, preSessionCmd, tmuxLayout string) (string, error) {
+func generateProjectConfigContent(copyFiles, sandboxTool, preSessionCmd, tmuxLayout string) (string, error) {
 	timestamp := time.Now().Format("Mon 02 Jan 2006 15:04:05 MST")
 
 	copyFilesValue, err := formatTomlValue(copyFiles)
 	if err != nil {
 		return "", fmt.Errorf("failed to encode copy_files: %w", err)
+	}
+	sandboxValue, err := formatTomlValue(sandboxTool)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode sandbox_tool: %w", err)
 	}
 	preSessionValue, err := formatTomlValue(preSessionCmd)
 	if err != nil {
@@ -371,6 +408,9 @@ func generateProjectConfigContent(copyFiles, preSessionCmd, tmuxLayout string) (
 	sb.WriteString("# Files to copy from repo root into new worktrees (comma-separated, relative to repo root)\n")
 	sb.WriteString("# Supports glob patterns and directories\n")
 	sb.WriteString(fmt.Sprintf("copy_files = %s\n\n", copyFilesValue))
+	sb.WriteString("# Optional sandbox tool command prefix for tmux sessions\n")
+	sb.WriteString("# Example: firejail --private, docker run --rm -it ...\n")
+	sb.WriteString(fmt.Sprintf("sandbox_tool = %s\n\n", sandboxValue))
 
 	sb.WriteString("# Command to run after worktree setup, before tmux session (optional)\n")
 	sb.WriteString("# Runs in worktree directory. Use for setup tasks like: bundle install, npm install\n")

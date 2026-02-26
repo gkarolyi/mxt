@@ -11,6 +11,7 @@ import (
 // Default configuration values
 const (
 	DefaultTerminal      = "terminal"
+	DefaultSandboxTool   = ""
 	DefaultCopyFiles     = ""
 	DefaultPreSessionCmd = ""
 	DefaultTmuxLayout    = ""
@@ -26,6 +27,7 @@ func LoadDefaults() (map[string]string, error) {
 	return map[string]string{
 		"worktree_dir":    filepath.Join(home, "worktrees"),
 		"terminal":        DefaultTerminal,
+		"sandbox_tool":    DefaultSandboxTool,
 		"copy_files":      DefaultCopyFiles,
 		"pre_session_cmd": DefaultPreSessionCmd,
 		"tmux_layout":     DefaultTmuxLayout,

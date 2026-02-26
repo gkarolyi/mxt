@@ -7,6 +7,7 @@ import (
 
 	"github.com/gkarolyi/mxt/internal/config"
 	"github.com/gkarolyi/mxt/internal/git"
+	"github.com/gkarolyi/mxt/internal/sandbox"
 	"github.com/gkarolyi/mxt/internal/terminal"
 	"github.com/gkarolyi/mxt/internal/tmux"
 	"github.com/gkarolyi/mxt/internal/ui"
@@ -89,7 +90,7 @@ func sessionsOpen(branchName string, runCmd string, bg bool) error {
 	sessionName := git.GenerateSessionName(repoName, branchName)
 
 	// Step 7: Check if session already exists
-	if tmux.HasSession(sessionName) {
+	if tmux.HasSession(sessionName, cfg.SandboxTool) {
 		ui.Warn(fmt.Sprintf("Session %s already exists", sessionName))
 		return nil
 	}
@@ -99,6 +100,7 @@ func sessionsOpen(branchName string, runCmd string, bg bool) error {
 	sessionConfig := &tmux.SessionConfig{
 		SessionName:  sessionName,
 		WorktreePath: worktreePath,
+		SandboxTool:  cfg.SandboxTool,
 		RunCommand:   runCmd,
 		CustomLayout: cfg.TmuxLayout,
 	}
@@ -124,9 +126,9 @@ func sessionsOpen(branchName string, runCmd string, bg bool) error {
 
 	// Step 9: Open terminal (unless --bg)
 	if !bg {
-		if err := terminal.Open(cfg.Terminal, sessionName); err != nil {
+		if err := terminal.Open(cfg.Terminal, sessionName, cfg.SandboxTool); err != nil {
 			ui.Warn(fmt.Sprintf("Failed to open terminal: %v", err))
-			ui.Info(fmt.Sprintf("Run: tmux attach -t %s", sessionName))
+			ui.Info(fmt.Sprintf("Run: %s", sandbox.CommandString(cfg.SandboxTool, "tmux", "attach", "-t", sessionName)))
 		}
 	}
 
@@ -169,11 +171,11 @@ func sessionsClose(branchName string) error {
 
 	sessionName := git.GenerateSessionName(repoName, branchName)
 
-	if !tmux.HasSession(sessionName) {
+	if !tmux.HasSession(sessionName, cfg.SandboxTool) {
 		return nil
 	}
 	// Step 4: Kill session if exists
-	if err := tmux.KillSession(sessionName); err != nil {
+	if err := tmux.KillSession(sessionName, cfg.SandboxTool); err != nil {
 		return fmt.Errorf("failed to kill session: %w", err)
 	}
 
@@ -261,12 +263,12 @@ func sessionsAttach(branchName string, windowName string) error {
 	sessionName := git.GenerateSessionName(repoName, branchName)
 
 	// Step 4: Check if session exists
-	if !tmux.HasSession(sessionName) {
+	if !tmux.HasSession(sessionName, cfg.SandboxTool) {
 		return fmt.Errorf("Session not found: %s", sessionName)
 	}
 
 	// Step 5: Attach to session (with optional window selection)
-	if err := tmux.AttachToSession(sessionName, windowName); err != nil {
+	if err := tmux.AttachToSession(sessionName, windowName, cfg.SandboxTool); err != nil {
 		return err
 	}
 

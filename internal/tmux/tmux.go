@@ -4,8 +4,9 @@ package tmux
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
+
+	"github.com/gkarolyi/mxt/internal/sandbox"
 )
 
 // Window represents a tmux window with a name and list of pane commands.
@@ -76,11 +77,12 @@ func ParseLayout(layout string) ([]Window, error) {
 
 // SessionConfig contains configuration for creating a tmux session.
 type SessionConfig struct {
-	SessionName   string   // Name of the tmux session
-	WorktreePath  string   // Path to the worktree (working directory)
-	RunCommand    string   // Optional command to run in agent window
-	CustomLayout  string   // Optional custom layout string
-	WindowNames   []string // Resulting window names (populated after creation)
+	SessionName  string   // Name of the tmux session
+	WorktreePath string   // Path to the worktree (working directory)
+	SandboxTool  string   // Optional sandbox tool prefix
+	RunCommand   string   // Optional command to run in agent window
+	CustomLayout string   // Optional custom layout string
+	WindowNames  []string // Resulting window names (populated after creation)
 }
 
 // CreateDefaultLayout creates a tmux session with the default layout (dev + agent windows).
@@ -93,33 +95,33 @@ type SessionConfig struct {
 // 5. Select dev window (make it active)
 func CreateDefaultLayout(config *SessionConfig) error {
 	// Step 1: Create new detached session
-	cmd := exec.Command("tmux", "new-session", "-d", "-s", config.SessionName, "-c", config.WorktreePath)
+	cmd := sandbox.Command(config.SandboxTool, "tmux", "new-session", "-d", "-s", config.SessionName, "-c", config.WorktreePath)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to create tmux session: %w", err)
 	}
 
 	// Step 2: Rename first window to "dev"
-	cmd = exec.Command("tmux", "rename-window", "-t", config.SessionName+":0", "dev")
+	cmd = sandbox.Command(config.SandboxTool, "tmux", "rename-window", "-t", config.SessionName+":0", "dev")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to rename window to dev: %w", err)
 	}
 
 	// Step 3: Create second window named "agent"
-	cmd = exec.Command("tmux", "new-window", "-t", config.SessionName, "-n", "agent", "-c", config.WorktreePath)
+	cmd = sandbox.Command(config.SandboxTool, "tmux", "new-window", "-t", config.SessionName, "-n", "agent", "-c", config.WorktreePath)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to create agent window: %w", err)
 	}
 
 	// Step 4: Send command to agent window if provided
 	if config.RunCommand != "" {
-		cmd = exec.Command("tmux", "send-keys", "-t", config.SessionName+":agent", config.RunCommand, "Enter")
+		cmd = sandbox.Command(config.SandboxTool, "tmux", "send-keys", "-t", config.SessionName+":agent", config.RunCommand, "Enter")
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to send command to agent window: %w", err)
 		}
 	}
 
 	// Step 5: Select dev window (make it active)
-	cmd = exec.Command("tmux", "select-window", "-t", config.SessionName+":dev")
+	cmd = sandbox.Command(config.SandboxTool, "tmux", "select-window", "-t", config.SessionName+":dev")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to select dev window: %w", err)
 	}
@@ -132,19 +134,19 @@ func CreateDefaultLayout(config *SessionConfig) error {
 
 // HasSession checks if a tmux session exists.
 // Returns true if the session exists, false otherwise.
-func HasSession(sessionName string) bool {
-	cmd := exec.Command("tmux", "has-session", "-t", sessionName)
+func HasSession(sessionName, sandboxTool string) bool {
+	cmd := sandbox.Command(sandboxTool, "tmux", "has-session", "-t", sessionName)
 	return cmd.Run() == nil
 }
 
 // KillSession kills a tmux session if it exists.
 // Returns nil if session was killed or didn't exist.
-func KillSession(sessionName string) error {
-	if !HasSession(sessionName) {
+func KillSession(sessionName, sandboxTool string) error {
+	if !HasSession(sessionName, sandboxTool) {
 		return nil
 	}
 
-	cmd := exec.Command("tmux", "kill-session", "-t", sessionName)
+	cmd := sandbox.Command(sandboxTool, "tmux", "kill-session", "-t", sessionName)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to kill session: %w", err)
 	}
@@ -154,7 +156,7 @@ func KillSession(sessionName string) error {
 
 // AttachToSession attaches to an existing tmux session in the current terminal.
 // If windowName is provided, it selects that window before attaching.
-func AttachToSession(sessionName, windowName string) error {
+func AttachToSession(sessionName, windowName, sandboxTool string) error {
 	// Validate window name if provided
 	if windowName != "" && windowName != "dev" && windowName != "agent" {
 		return fmt.Errorf("Unknown window: %s (use dev or agent)", windowName)
@@ -163,7 +165,7 @@ func AttachToSession(sessionName, windowName string) error {
 	// Select window if specified
 	if windowName != "" {
 		target := fmt.Sprintf("%s:%s", sessionName, windowName)
-		cmd := exec.Command("tmux", "select-window", "-t", target)
+		cmd := sandbox.Command(sandboxTool, "tmux", "select-window", "-t", target)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to select window '%s': %w", windowName, err)
 		}
@@ -171,7 +173,7 @@ func AttachToSession(sessionName, windowName string) error {
 
 	// Attach to session
 	// This replaces the current process with tmux attach
-	cmd := exec.Command("tmux", "attach", "-t", sessionName)
+	cmd := sandbox.Command(sandboxTool, "tmux", "attach", "-t", sessionName)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -201,7 +203,7 @@ func CreateCustomLayout(config *SessionConfig) error {
 
 	// Step 2: Create first window with session
 	firstWindow := windows[0]
-	cmd := exec.Command("tmux", "new-session", "-d", "-s", config.SessionName, "-c", config.WorktreePath, "-n", firstWindow.Name)
+	cmd := sandbox.Command(config.SandboxTool, "tmux", "new-session", "-d", "-s", config.SessionName, "-c", config.WorktreePath, "-n", firstWindow.Name)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to create tmux session: %w", err)
 	}
@@ -209,7 +211,7 @@ func CreateCustomLayout(config *SessionConfig) error {
 	// Step 3: Create additional windows
 	for i := 1; i < len(windows); i++ {
 		window := windows[i]
-		cmd := exec.Command("tmux", "new-window", "-t", config.SessionName, "-n", window.Name, "-c", config.WorktreePath)
+		cmd := sandbox.Command(config.SandboxTool, "tmux", "new-window", "-t", config.SessionName, "-n", window.Name, "-c", config.WorktreePath)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to create window '%s': %w", window.Name, err)
 		}
@@ -221,7 +223,7 @@ func CreateCustomLayout(config *SessionConfig) error {
 		// Send command to first pane if non-empty
 		if len(window.Panes) > 0 && window.Panes[0] != "" {
 			target := fmt.Sprintf("%s:%s.0", config.SessionName, window.Name)
-			cmd := exec.Command("tmux", "send-keys", "-t", target, window.Panes[0], "Enter")
+			cmd := sandbox.Command(config.SandboxTool, "tmux", "send-keys", "-t", target, window.Panes[0], "Enter")
 			if err := cmd.Run(); err != nil {
 				return fmt.Errorf("failed to send command to pane 0 of window '%s': %w", window.Name, err)
 			}
@@ -230,7 +232,7 @@ func CreateCustomLayout(config *SessionConfig) error {
 		// Create additional panes (vertical splits)
 		for i := 1; i < len(window.Panes); i++ {
 			target := fmt.Sprintf("%s:%s", config.SessionName, window.Name)
-			cmd := exec.Command("tmux", "split-window", "-h", "-t", target, "-c", config.WorktreePath)
+			cmd := sandbox.Command(config.SandboxTool, "tmux", "split-window", "-h", "-t", target, "-c", config.WorktreePath)
 			if err := cmd.Run(); err != nil {
 				return fmt.Errorf("failed to create pane %d in window '%s': %w", i, window.Name, err)
 			}
@@ -239,7 +241,7 @@ func CreateCustomLayout(config *SessionConfig) error {
 			if window.Panes[i] != "" {
 				// After split, the new pane is the last one, but we can just send to the window
 				// and tmux will send to the active pane
-				cmd := exec.Command("tmux", "send-keys", "-t", target, window.Panes[i], "Enter")
+				cmd := sandbox.Command(config.SandboxTool, "tmux", "send-keys", "-t", target, window.Panes[i], "Enter")
 				if err := cmd.Run(); err != nil {
 					return fmt.Errorf("failed to send command to pane %d of window '%s': %w", i, window.Name, err)
 				}
@@ -249,7 +251,7 @@ func CreateCustomLayout(config *SessionConfig) error {
 		// Apply even-horizontal layout if window has multiple panes
 		if len(window.Panes) > 1 {
 			target := fmt.Sprintf("%s:%s", config.SessionName, window.Name)
-			cmd := exec.Command("tmux", "select-layout", "-t", target, "even-horizontal")
+			cmd := sandbox.Command(config.SandboxTool, "tmux", "select-layout", "-t", target, "even-horizontal")
 			if err := cmd.Run(); err != nil {
 				return fmt.Errorf("failed to apply layout to window '%s': %w", window.Name, err)
 			}
@@ -262,7 +264,7 @@ func CreateCustomLayout(config *SessionConfig) error {
 		for _, window := range windows {
 			if window.Name == "agent" {
 				target := fmt.Sprintf("%s:agent.0", config.SessionName)
-				cmd := exec.Command("tmux", "send-keys", "-t", target, config.RunCommand, "Enter")
+				cmd := sandbox.Command(config.SandboxTool, "tmux", "send-keys", "-t", target, config.RunCommand, "Enter")
 				if err := cmd.Run(); err != nil {
 					return fmt.Errorf("failed to send command to agent window: %w", err)
 				}
@@ -273,7 +275,7 @@ func CreateCustomLayout(config *SessionConfig) error {
 
 	// Step 6: Select first window
 	target := fmt.Sprintf("%s:%s", config.SessionName, firstWindow.Name)
-	cmd = exec.Command("tmux", "select-window", "-t", target)
+	cmd = sandbox.Command(config.SandboxTool, "tmux", "select-window", "-t", target)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to select first window: %w", err)
 	}

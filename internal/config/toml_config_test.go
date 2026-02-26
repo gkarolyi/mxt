@@ -9,6 +9,7 @@ func TestParseConfigTOML(t *testing.T) {
 	input := `# Example config
 worktree_dir = "/home/user/worktrees"
 terminal = "iterm2"
+sandbox_tool = "firejail --private"
 copy_files = ".env,.env.local"
 pre_session_cmd = "echo \"hello # world\""
 `
@@ -21,6 +22,7 @@ pre_session_cmd = "echo \"hello # world\""
 	expected := map[string]string{
 		"worktree_dir":    "/home/user/worktrees",
 		"terminal":        "iterm2",
+		"sandbox_tool":    "firejail --private",
 		"copy_files":      ".env,.env.local",
 		"pre_session_cmd": "echo \"hello # world\"",
 	}

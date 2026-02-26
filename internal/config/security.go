@@ -10,7 +10,7 @@ const dangerousChars = "`$;|&"
 
 // isCommandKey returns true if the key is a command key that should allow metacharacters
 func isCommandKey(key string) bool {
-	return key == "pre_session_cmd" || key == "tmux_layout"
+	return key == "pre_session_cmd" || key == "tmux_layout" || key == "sandbox_tool"
 }
 
 // containsMetacharacters checks if a value contains shell metacharacters

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gkarolyi/mxt/internal/sandbox"
 	"github.com/gkarolyi/mxt/internal/ui"
 )
 
@@ -144,14 +145,14 @@ func (e PreSessionError) Error() string {
 //
 // Returns error if command fails. The caller should handle the error by
 // prompting the user for confirmation.
-func RunPreSessionCommand(worktreePath, command string) error {
+func RunPreSessionCommand(worktreePath, command, sandboxTool string) error {
 	ui.Info("Running pre-session command...")
 
 	// Print the command being run (indented and dimmed)
 	fmt.Printf("  %s\n", ui.DimText(command))
 
 	// Execute command in worktree directory using shell
-	cmd := exec.Command("sh", "-c", command)
+	cmd := sandbox.Command(sandboxTool, "sh", "-c", command)
 	cmd.Dir = worktreePath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

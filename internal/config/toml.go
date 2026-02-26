@@ -9,6 +9,7 @@ import (
 var knownConfigKeys = map[string]struct{}{
 	"worktree_dir":    {},
 	"terminal":        {},
+	"sandbox_tool":    {},
 	"copy_files":      {},
 	"pre_session_cmd": {},
 	"tmux_layout":     {},

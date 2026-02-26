@@ -14,6 +14,7 @@ import (
 
 	"github.com/gkarolyi/mxt/internal/config"
 	"github.com/gkarolyi/mxt/internal/git"
+	"github.com/gkarolyi/mxt/internal/sandbox"
 	"github.com/gkarolyi/mxt/internal/terminal"
 	"github.com/gkarolyi/mxt/internal/tmux"
 	"github.com/gkarolyi/mxt/internal/ui"
@@ -112,7 +113,7 @@ func NewCommand(branchName string, fromBranch string, runCmd string, bg bool) er
 
 	// Step 11: Run pre-session command
 	if cfg.PreSessionCmd != "" {
-		if err := worktree.RunPreSessionCommand(worktreePath, cfg.PreSessionCmd); err != nil {
+		if err := worktree.RunPreSessionCommand(worktreePath, cfg.PreSessionCmd, cfg.SandboxTool); err != nil {
 			var preErr worktree.PreSessionError
 			if errors.As(err, &preErr) {
 				ui.Warn(fmt.Sprintf("Pre-session command failed (exit code: %d)", preErr.ExitCode))
@@ -133,6 +134,7 @@ func NewCommand(branchName string, fromBranch string, runCmd string, bg bool) er
 	sessionConfig := &tmux.SessionConfig{
 		SessionName:  sessionName,
 		WorktreePath: worktreePath,
+		SandboxTool:  cfg.SandboxTool,
 		RunCommand:   runCmd,
 		CustomLayout: cfg.TmuxLayout,
 	}
@@ -160,9 +162,9 @@ func NewCommand(branchName string, fromBranch string, runCmd string, bg bool) er
 
 	// Step 13: Open terminal (unless --bg)
 	if !bg {
-		if err := terminal.Open(cfg.Terminal, sessionName); err != nil {
+		if err := terminal.Open(cfg.Terminal, sessionName, cfg.SandboxTool); err != nil {
 			ui.Warn(fmt.Sprintf("Failed to open terminal: %v", err))
-			ui.Info(fmt.Sprintf("Run: tmux attach -t %s", sessionName))
+			ui.Info(fmt.Sprintf("Run: %s", sandbox.CommandString(cfg.SandboxTool, "tmux", "attach", "-t", sessionName)))
 		}
 	}
 

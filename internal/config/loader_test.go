@@ -18,6 +18,7 @@ func TestLoadDefaults(t *testing.T) {
 	expectedDefaults := map[string]string{
 		"worktree_dir":    filepath.Join(os.Getenv("HOME"), "worktrees"),
 		"terminal":        "terminal",
+		"sandbox_tool":    "",
 		"copy_files":      "",
 		"pre_session_cmd": "",
 		"tmux_layout":     "",
@@ -280,6 +281,9 @@ copy_files = ".env,.env.local,CLAUDE.md"
 	if config["pre_session_cmd"] != "" {
 		t.Errorf("LoadConfig()[pre_session_cmd] = %q, want empty", config["pre_session_cmd"])
 	}
+	if config["sandbox_tool"] != "" {
+		t.Errorf("LoadConfig()[sandbox_tool] = %q, want empty", config["sandbox_tool"])
+	}
 }
 
 // TestLoadConfigOnlyDefaults tests loading when no config files exist
@@ -306,5 +310,8 @@ func TestLoadConfigOnlyDefaults(t *testing.T) {
 
 	if config["terminal"] != "terminal" {
 		t.Errorf("LoadConfig()[terminal] = %q, want %q", config["terminal"], "terminal")
+		if config["sandbox_tool"] != "" {
+			t.Errorf("LoadConfig()[sandbox_tool] = %q, want empty", config["sandbox_tool"])
+		}
 	}
 }

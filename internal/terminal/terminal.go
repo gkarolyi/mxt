@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/gkarolyi/mxt/internal/sandbox"
 	"github.com/gkarolyi/mxt/internal/ui"
 )
 
@@ -16,16 +17,17 @@ import (
 // - "iterm2": iTerm2
 // - "ghostty": Ghostty terminal
 // - "current": Attach in currently active terminal
-func Open(terminalType, sessionName string) error {
+func Open(terminalType, sessionName, sandboxTool string) error {
+	attachCommand := sandbox.CommandString(sandboxTool, "tmux", "attach", "-t", sessionName)
 	switch terminalType {
 	case "terminal", "":
-		return openTerminalApp(sessionName)
+		return openTerminalApp(attachCommand)
 	case "iterm2":
-		return openITerm2(sessionName)
+		return openITerm2(attachCommand)
 	case "ghostty":
-		return openGhostty(sessionName)
+		return openGhostty(attachCommand, sessionName)
 	case "current":
-		return openCurrent(sessionName)
+		return openCurrent(sessionName, sandboxTool)
 	default:
 		return fmt.Errorf("unknown terminal type: %s (use terminal, iterm2, ghostty, or current)", terminalType)
 	}
@@ -33,14 +35,14 @@ func Open(terminalType, sessionName string) error {
 
 // openTerminalApp opens a new Terminal.app window with tmux attached.
 // Uses AppleScript via osascript.
-func openTerminalApp(sessionName string) error {
-	// Escape session name for AppleScript
-	escapedSession := escapeForAppleScript(sessionName)
+func openTerminalApp(attachCommand string) error {
+	// Escape command for AppleScript
+	escapedCommand := escapeForAppleScript(attachCommand)
 
 	script := fmt.Sprintf(`tell application "Terminal"
     activate
-    do script "tmux attach -t %s"
-end tell`, escapedSession)
+    do script "%s"
+end tell`, escapedCommand)
 
 	cmd := exec.Command("osascript", "-e", script)
 	cmd.Stderr = nil // Suppress stderr
@@ -54,17 +56,17 @@ end tell`, escapedSession)
 
 // openITerm2 opens a new iTerm2 window with tmux attached.
 // Uses AppleScript via osascript.
-func openITerm2(sessionName string) error {
-	// Escape session name for AppleScript
-	escapedSession := escapeForAppleScript(sessionName)
+func openITerm2(attachCommand string) error {
+	// Escape command for AppleScript
+	escapedCommand := escapeForAppleScript(attachCommand)
 
 	script := fmt.Sprintf(`tell application "iTerm"
     activate
     create window with default profile
     tell current session of current window
-        write text "tmux attach -t %s"
+        write text "%s"
     end tell
-end tell`, escapedSession)
+end tell`, escapedCommand)
 
 	cmd := exec.Command("osascript", "-e", script)
 	cmd.Stderr = nil // Suppress stderr
@@ -78,14 +80,14 @@ end tell`, escapedSession)
 
 // openGhostty opens Ghostty terminal with tmux attached.
 // Uses the 'open' command with --args flag.
-func openGhostty(sessionName string) error {
-	cmd := exec.Command("open", "-a", "Ghostty", "--args", "-e", "tmux", "attach", "-t", sessionName)
+func openGhostty(attachCommand, sessionName string) error {
+	cmd := exec.Command("open", "-a", "Ghostty", "--args", "-e", "sh", "-c", attachCommand)
 
 	if err := cmd.Run(); err != nil {
 		// Provide fallback instructions
 		ui.Warn("Failed to open Ghostty. Ensure Ghostty.app is installed.")
 		ui.Warn("Falling back to current terminal...")
-		ui.Info(fmt.Sprintf("Run: tmux attach -t %s", sessionName))
+		ui.Info(fmt.Sprintf("Run: %s", attachCommand))
 		return err
 	}
 
@@ -94,16 +96,17 @@ func openGhostty(sessionName string) error {
 
 // openCurrent attaches to the tmux session in the currently active terminal.
 // This replaces the current process with tmux attach.
-func openCurrent(sessionName string) error {
+func openCurrent(sessionName, sandboxTool string) error {
 	ui.Info(fmt.Sprintf("Attaching to session in current terminal: %s", ui.BoldText(sessionName)))
 
-	cmd := exec.Command("tmux", "attach", "-t", sessionName)
+	attachCommand := sandbox.CommandString(sandboxTool, "tmux", "attach", "-t", sessionName)
+	cmd := sandbox.Command(sandboxTool, "tmux", "attach", "-t", sessionName)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		ui.Warn(fmt.Sprintf("Could not attach automatically. Run: tmux attach -t %s", sessionName))
+		ui.Warn(fmt.Sprintf("Could not attach automatically. Run: %s", attachCommand))
 		return err
 	}
 

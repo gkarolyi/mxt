@@ -14,6 +14,7 @@ import (
 type Config struct {
 	WorktreeDir   string
 	Terminal      string
+	SandboxTool   string
 	CopyFiles     string
 	PreSessionCmd string
 	TmuxLayout    string
@@ -38,6 +39,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		WorktreeDir:   configMap["worktree_dir"],
 		Terminal:      configMap["terminal"],
+		SandboxTool:   configMap["sandbox_tool"],
 		CopyFiles:     configMap["copy_files"],
 		PreSessionCmd: configMap["pre_session_cmd"],
 		TmuxLayout:    configMap["tmux_layout"],
@@ -59,7 +61,7 @@ func ParseConfig(r io.Reader) (map[string]string, error) {
 	config := make(map[string]string)
 	for key, value := range raw {
 		switch key {
-		case "worktree_dir", "terminal", "pre_session_cmd":
+		case "worktree_dir", "terminal", "pre_session_cmd", "sandbox_tool":
 			parsed, err := parseStringValue(key, value)
 			if err != nil {
 				return nil, err

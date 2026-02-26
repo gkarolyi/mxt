@@ -56,8 +56,8 @@ func DeleteCommand(branch string, force bool) error {
 	}
 
 	sessionName := git.GenerateSessionName(repoName, branch)
-	if tmux.HasSession(sessionName) {
-		if err := tmux.KillSession(sessionName); err != nil {
+	if tmux.HasSession(sessionName, cfg.SandboxTool) {
+		if err := tmux.KillSession(sessionName, cfg.SandboxTool); err != nil {
 			return fmt.Errorf("failed to kill session %s: %w", sessionName, err)
 		}
 		ui.Success(fmt.Sprintf("Killed session %s", ui.BoldText(sessionName)))

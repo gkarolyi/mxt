@@ -101,6 +101,12 @@ func TestValidateConfigValueSecurity(t *testing.T) {
 			value:       "server:cd api && bin/server",
 			shouldError: false,
 		},
+		{
+			name:        "sandbox tool with metacharacters",
+			key:         "sandbox_tool",
+			value:       "firejail --private && echo ready",
+			shouldError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -124,6 +130,7 @@ func TestIsCommandKey(t *testing.T) {
 	}{
 		{"worktree_dir", false},
 		{"terminal", false},
+		{"sandbox_tool", true},
 		{"copy_files", false},
 		{"pre_session_cmd", true},
 		{"tmux_layout", true},
@@ -191,6 +198,7 @@ func TestValidateConfig(t *testing.T) {
 			config: map[string]string{
 				"pre_session_cmd": "npm install && npm run build",
 				"tmux_layout":     "dev:hx|lazygit",
+				"sandbox_tool":    "firejail --private && echo ready",
 			},
 			shouldError: false,
 		},
