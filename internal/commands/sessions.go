@@ -64,6 +64,20 @@ func sessionsOpen(branchName string, runCmd string, bg bool) error {
 		return fmt.Errorf("failed to get repository name: %w", err)
 	}
 
+	if branchName == "" {
+		worktrees, err := getManagedWorktrees(cfg.WorktreeDir, repoName)
+		if err != nil {
+			return fmt.Errorf("failed to list worktrees: %w", err)
+		}
+		branchName, err = resolveSessionBranch("open", branchName, isInteractive(), worktrees)
+		if err != nil {
+			return err
+		}
+		if branchName == "" {
+			return nil
+		}
+	}
+
 	worktreePath := git.CalculateWorktreePath(cfg.WorktreeDir, repoName, branchName)
 
 	// Step 5: Validate worktree exists
@@ -139,6 +153,20 @@ func sessionsClose(branchName string) error {
 		return fmt.Errorf("failed to get repository name: %w", err)
 	}
 
+	if branchName == "" {
+		worktrees, err := getManagedWorktrees(cfg.WorktreeDir, repoName)
+		if err != nil {
+			return fmt.Errorf("failed to list worktrees: %w", err)
+		}
+		branchName, err = resolveSessionBranch("close", branchName, isInteractive(), worktrees)
+		if err != nil {
+			return err
+		}
+		if branchName == "" {
+			return nil
+		}
+	}
+
 	sessionName := git.GenerateSessionName(repoName, branchName)
 
 	if !tmux.HasSession(sessionName) {
@@ -156,16 +184,42 @@ func sessionsClose(branchName string) error {
 
 // sessionsRelaunch kills and recreates a tmux session.
 func sessionsRelaunch(branchName string, runCmd string, bg bool) error {
-	// Step 1: Close the session
+	if branchName == "" {
+		// Step 1: Require git repository
+		if !git.IsInsideWorkTree() {
+			return fmt.Errorf("Not inside a git repository. Run mxt from within your repo.")
+		}
+		// Step 2: Load configuration
+		cfg, err := config.Load()
+		if err != nil {
+			return fmt.Errorf("failed to load configuration: %w", err)
+		}
+		// Step 3: Determine repository name
+		repoName, err := git.GetRepoName()
+		if err != nil {
+			return fmt.Errorf("failed to get repository name: %w", err)
+		}
+		worktrees, err := getManagedWorktrees(cfg.WorktreeDir, repoName)
+		if err != nil {
+			return fmt.Errorf("failed to list worktrees: %w", err)
+		}
+		branchName, err = resolveSessionBranch("relaunch", branchName, isInteractive(), worktrees)
+		if err != nil {
+			return err
+		}
+		if branchName == "" {
+			return nil
+		}
+	}
+
+	// Step 4: Close the session
 	if err := sessionsClose(branchName); err != nil {
 		return err
 	}
-
-	// Step 2: Open the session
+	// Step 5: Open the session
 	if err := sessionsOpen(branchName, runCmd, bg); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -188,6 +242,20 @@ func sessionsAttach(branchName string, windowName string) error {
 	repoName, err := git.GetRepoName()
 	if err != nil {
 		return fmt.Errorf("failed to get repository name: %w", err)
+	}
+
+	if branchName == "" {
+		worktrees, err := getManagedWorktrees(cfg.WorktreeDir, repoName)
+		if err != nil {
+			return fmt.Errorf("failed to list worktrees: %w", err)
+		}
+		branchName, err = resolveSessionBranch("attach", branchName, isInteractive(), worktrees)
+		if err != nil {
+			return err
+		}
+		if branchName == "" {
+			return nil
+		}
 	}
 
 	sessionName := git.GenerateSessionName(repoName, branchName)

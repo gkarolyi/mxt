@@ -216,6 +216,7 @@ Use `--force` or `-f` to skip confirmation.
 ### `mxt sessions <action> <branch> [options]`
 
 Manage the tmux session independently of the worktree.
+If the branch is omitted and stdin/stdout are TTY, mxt opens an interactive selector via fzf (install fzf or pass a branch name).
 
 ```bash
 # Close session for a branch

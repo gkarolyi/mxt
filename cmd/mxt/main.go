@@ -152,11 +152,13 @@ var sessionsCmd = &cobra.Command{
   open   <branch> [--run cmd]   Create session & open terminal
   close  <branch>               Kill tmux session
   relaunch <branch> [--run cmd] Close + reopen session
-  attach <branch> [dev|agent]   Attach to session (optionally select window)`,
+  attach <branch> [dev|agent]   Attach to session (optionally select window)
+
+  Omit <branch> to select interactively when running in a TTY.`,
 	Args: cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
-			ui.Error("Usage: mxt sessions <open|close|relaunch|attach> <branch> [--run claude|codex] [--bg]")
+			ui.Error(commands.SessionUsage(""))
 			os.Exit(1)
 		}
 		action := args[0]
@@ -165,19 +167,12 @@ var sessionsCmd = &cobra.Command{
 			branchName = args[1]
 		}
 		if branchName == "" {
-			switch action {
-			case "open", "launch", "start":
-				ui.Error("Usage: mxt sessions open <branch> [--run claude|codex] [--bg]")
-			case "close", "kill", "stop":
-				ui.Error("Usage: mxt sessions close <branch>")
-			case "relaunch", "restart":
-				ui.Error("Usage: mxt sessions relaunch <branch> [--run claude|codex] [--bg]")
-			case "attach":
-				ui.Error("Usage: mxt sessions attach <branch> [dev|agent]")
-			default:
-				ui.Error("Usage: mxt sessions <open|close|relaunch|attach> <branch> [--run claude|codex] [--bg]")
+			if term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd())) {
+				// Allow interactive selection in commands.SessionsCommand.
+			} else {
+				ui.Error(commands.SessionUsage(action))
+				os.Exit(1)
 			}
-			os.Exit(1)
 		}
 
 		// For attach command, third argument can be window name

@@ -44,6 +44,7 @@ func HelpCommand(version string) {
 	fmt.Println("        close  <branch>               Kill tmux session")
 	fmt.Println("        relaunch <branch> [--run cmd] Close + reopen session")
 	fmt.Println("        attach <branch> [dev|agent]   Attach to session (optionally select window)")
+	fmt.Println("        (omit branch to select interactively when running in a TTY)")
 	fmt.Println()
 	fmt.Printf("    %shelp%s                              Show this help message\n", ui.Cyan, ui.Reset)
 	fmt.Println()
