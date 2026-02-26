@@ -111,14 +111,34 @@ func FindGitRoot(path string) (string, error) {
 	return root, nil
 }
 
-// GetGlobalConfigPath returns the path to the global config file.
-// Respects MXT_CONFIG_DIR environment variable.
-func GetGlobalConfigPath() string {
+// getConfigDir resolves the base directory for config files.
+func getConfigDir() string {
 	configDir := os.Getenv("MXT_CONFIG_DIR")
 	if configDir == "" {
 		configDir = filepath.Join(os.Getenv("HOME"), ".mxt")
 	}
-	return filepath.Join(configDir, "config")
+	return configDir
+}
+
+// GetGlobalConfigPath returns the path to the global TOML config file.
+// Respects MXT_CONFIG_DIR environment variable.
+func GetGlobalConfigPath() string {
+	return filepath.Join(getConfigDir(), "config.toml")
+}
+
+// GetLegacyGlobalConfigPath returns the legacy key=value global config path.
+func GetLegacyGlobalConfigPath() string {
+	return filepath.Join(getConfigDir(), "config")
+}
+
+// GetProjectConfigPath returns the TOML project config path for a repo.
+func GetProjectConfigPath(gitRoot string) string {
+	return filepath.Join(gitRoot, ".mxt.toml")
+}
+
+// GetLegacyProjectConfigPath returns the legacy key=value project config path for a repo.
+func GetLegacyProjectConfigPath(gitRoot string) string {
+	return filepath.Join(gitRoot, ".mxt")
 }
 
 // LoadConfig loads configuration with proper priority:
@@ -145,7 +165,7 @@ func LoadConfig(workDir string) (map[string]string, error) {
 	gitRoot, err := FindGitRoot(workDir)
 	if err == nil {
 		// We're in a git repo, try to load project config
-		projectConfigPath := filepath.Join(gitRoot, ".mxt")
+		projectConfigPath := GetProjectConfigPath(gitRoot)
 		projectConfig, err := LoadConfigFile(projectConfigPath)
 		if err != nil {
 			return nil, err

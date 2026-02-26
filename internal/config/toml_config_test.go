@@ -32,6 +32,22 @@ pre_session_cmd = "echo \"hello # world\""
 	}
 }
 
+func TestParseConfigArrayValues(t *testing.T) {
+	input := `copy_files = [".env", ".env.local"]
+	tmux_layout = ["dev:hx|lazygit", "server:bin/server", "agent:"]`
+	config, err := ParseConfig(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("ParseConfig() error = %v", err)
+	}
+	if config["copy_files"] != ".env,.env.local" {
+		t.Errorf("ParseConfig()[copy_files] = %q, want %q", config["copy_files"], ".env,.env.local")
+	}
+	expectedLayout := "dev:hx|lazygit;server:bin/server;agent:"
+	if config["tmux_layout"] != expectedLayout {
+		t.Errorf("ParseConfig()[tmux_layout] = %q, want %q", config["tmux_layout"], expectedLayout)
+	}
+}
+
 func TestParseConfigUnknownKey(t *testing.T) {
 	_, err := ParseConfig(strings.NewReader("unknown = \"value\""))
 	if err == nil {

@@ -46,13 +46,14 @@ var versionCmd = &cobra.Command{
 }
 
 var initCmd = &cobra.Command{
-	Use:   "init [--local] [--reinit]",
+	Use:   "init [--local] [--import] [--reinit]",
 	Short: "Set up configuration",
-	Long:  "Create global config (~/.mxt/config) or project config (.mxt in repo root)",
+	Long:  "Create global config (~/.mxt/config.toml) or project config (.mxt.toml in repo root)",
 	Run: func(cmd *cobra.Command, args []string) {
 		local, _ := cmd.Flags().GetBool("local")
 		reinit, _ := cmd.Flags().GetBool("reinit")
-		if err := commands.InitCommand(local, reinit); err != nil {
+		importLegacy, _ := cmd.Flags().GetBool("import")
+		if err := commands.InitCommand(local, reinit, importLegacy); err != nil {
 			ui.Error(err.Error())
 			os.Exit(1)
 		}
@@ -68,17 +69,6 @@ var configCmd = &cobra.Command{
 			if errors.As(err, &notFound) {
 				os.Exit(1)
 			}
-			ui.Error(err.Error())
-			os.Exit(1)
-		}
-	},
-}
-
-var configMigrateCmd = &cobra.Command{
-	Use:   "migrate",
-	Short: "Convert legacy config to TOML",
-	Run: func(cmd *cobra.Command, args []string) {
-		if err := commands.ConfigMigrateCommand(); err != nil {
 			ui.Error(err.Error())
 			os.Exit(1)
 		}
@@ -206,7 +196,8 @@ var helpCmd = &cobra.Command{
 
 func init() {
 	// Add flags for init command
-	initCmd.Flags().BoolP("local", "l", false, "Create project config (.mxt in repo root)")
+	initCmd.Flags().BoolP("local", "l", false, "Create project config (.mxt.toml in repo root)")
+	initCmd.Flags().Bool("import", false, "Import legacy key=value config to TOML")
 	initCmd.Flags().Bool("reinit", false, "Overwrite existing config without prompting")
 
 	// Add flags for new command
@@ -220,8 +211,6 @@ func init() {
 	// Add flags for sessions command
 	sessionsCmd.Flags().String("run", "", "Auto-run command in agent window (claude|codex)")
 	sessionsCmd.Flags().Bool("bg", false, "Create session without opening terminal")
-
-	configCmd.AddCommand(configMigrateCmd)
 
 	// Add subcommands to root
 	rootCmd.AddCommand(versionCmd)

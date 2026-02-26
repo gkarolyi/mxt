@@ -4,25 +4,33 @@ _mxt_managed_branches() {
     local worktree_dir repo_name wt_base
     worktree_dir="$HOME/worktrees"
     local config_dir="${MXT_CONFIG_DIR:-$HOME/.mxt}"
-    local config_file="$config_dir/config"
+    local config_file="$config_dir/config.toml"
 
     # Load worktree_dir from global config
     if [[ -f "$config_file" ]]; then
         local val
-        val=$(grep -E '^worktree_dir=' "$config_file" 2>/dev/null | head -1 | cut -d= -f2-)
+        val=$(grep -E '^worktree_dir[[:space:]]*=' "$config_file" 2>/dev/null | head -1 | cut -d= -f2-)
         val="${val#"${val%%[![:space:]]*}"}"
         val="${val%"${val##*[![:space:]]}"}"
+        val="${val%\"}"
+        val="${val#\"}"
+        val="${val%\'}"
+        val="${val#\'}"
         [[ -n "$val" ]] && worktree_dir="$val"
     fi
 
     # Override with project-local config
     local repo_root
     repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || return
-    if [[ -f "$repo_root/.mxt" ]]; then
+    if [[ -f "$repo_root/.mxt.toml" ]]; then
         local val
-        val=$(grep -E '^worktree_dir=' "$repo_root/.mxt" 2>/dev/null | head -1 | cut -d= -f2-)
+        val=$(grep -E '^worktree_dir[[:space:]]*=' "$repo_root/.mxt.toml" 2>/dev/null | head -1 | cut -d= -f2-)
         val="${val#"${val%%[![:space:]]*}"}"
         val="${val%"${val##*[![:space:]]}"}"
+        val="${val%\"}"
+        val="${val#\"}"
+        val="${val%\'}"
+        val="${val#\'}"
         [[ -n "$val" ]] && worktree_dir="$val"
     fi
 

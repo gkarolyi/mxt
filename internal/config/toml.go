@@ -1,10 +1,9 @@
 package config
 
 import (
-	"bytes"
 	"fmt"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml/v2"
 )
 
 var knownConfigKeys = map[string]struct{}{
@@ -29,35 +28,9 @@ func EncodeConfig(config map[string]string) (string, error) {
 	if err := validateConfigKeys(config); err != nil {
 		return "", err
 	}
-	var buf bytes.Buffer
-	encoder := toml.NewEncoder(&buf)
-	if err := encoder.Encode(tomlConfigFromMap(config)); err != nil {
+	data, err := toml.Marshal(config)
+	if err != nil {
 		return "", err
 	}
-	return buf.String(), nil
-}
-
-func tomlConfigFromMap(config map[string]string) tomlConfig {
-	var output tomlConfig
-	if value, ok := config["worktree_dir"]; ok {
-		valueCopy := value
-		output.WorktreeDir = &valueCopy
-	}
-	if value, ok := config["terminal"]; ok {
-		valueCopy := value
-		output.Terminal = &valueCopy
-	}
-	if value, ok := config["copy_files"]; ok {
-		valueCopy := value
-		output.CopyFiles = &valueCopy
-	}
-	if value, ok := config["pre_session_cmd"]; ok {
-		valueCopy := value
-		output.PreSessionCmd = &valueCopy
-	}
-	if value, ok := config["tmux_layout"]; ok {
-		valueCopy := value
-		output.TmuxLayout = &valueCopy
-	}
-	return output
+	return string(data), nil
 }

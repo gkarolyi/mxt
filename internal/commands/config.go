@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/gkarolyi/mxt/internal/config"
 	mxtErrors "github.com/gkarolyi/mxt/internal/errors"
@@ -33,7 +32,7 @@ func ConfigCommand() error {
 	projectExists := false
 	gitRoot, err := config.FindGitRoot(".")
 	if err == nil {
-		projectConfigPath := filepath.Join(gitRoot, ".mxt")
+		projectConfigPath := config.GetProjectConfigPath(gitRoot)
 		if _, err := os.Stat(projectConfigPath); err == nil {
 			hasAny = true
 			projectExists = true

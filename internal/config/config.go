@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strings"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml/v2"
 )
 
 // Config represents the mxt configuration
@@ -18,34 +17,6 @@ type Config struct {
 	CopyFiles     string
 	PreSessionCmd string
 	TmuxLayout    string
-}
-
-type tomlConfig struct {
-	WorktreeDir   *string `toml:"worktree_dir"`
-	Terminal      *string `toml:"terminal"`
-	CopyFiles     *string `toml:"copy_files"`
-	PreSessionCmd *string `toml:"pre_session_cmd"`
-	TmuxLayout    *string `toml:"tmux_layout"`
-}
-
-func (cfg tomlConfig) toMap() map[string]string {
-	config := make(map[string]string)
-	if cfg.WorktreeDir != nil {
-		config["worktree_dir"] = *cfg.WorktreeDir
-	}
-	if cfg.Terminal != nil {
-		config["terminal"] = *cfg.Terminal
-	}
-	if cfg.CopyFiles != nil {
-		config["copy_files"] = *cfg.CopyFiles
-	}
-	if cfg.PreSessionCmd != nil {
-		config["pre_session_cmd"] = *cfg.PreSessionCmd
-	}
-	if cfg.TmuxLayout != nil {
-		config["tmux_layout"] = *cfg.TmuxLayout
-	}
-	return config
 }
 
 // Load loads the configuration from defaults, global config, and project config.
@@ -79,26 +50,68 @@ func Load() (*Config, error) {
 // It supports standard TOML comments and validates keys.
 // Returns a map of config key-value pairs.
 func ParseConfig(r io.Reader) (map[string]string, error) {
-	var raw tomlConfig
-	meta, err := toml.DecodeReader(r, &raw)
-	if err != nil {
+	decoder := toml.NewDecoder(r)
+	raw := map[string]any{}
+	if err := decoder.Decode(&raw); err != nil {
 		return nil, err
 	}
 
-	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
-		keys := make([]string, 0, len(undecoded))
-		for _, key := range undecoded {
-			keys = append(keys, key.String())
+	config := make(map[string]string)
+	for key, value := range raw {
+		switch key {
+		case "worktree_dir", "terminal", "pre_session_cmd":
+			parsed, err := parseStringValue(key, value)
+			if err != nil {
+				return nil, err
+			}
+			config[key] = parsed
+		case "copy_files":
+			parsed, err := parseStringOrArrayValue(key, value, ",")
+			if err != nil {
+				return nil, err
+			}
+			config[key] = parsed
+		case "tmux_layout":
+			parsed, err := parseStringOrArrayValue(key, value, " ")
+			if err != nil {
+				return nil, err
+			}
+			config[key] = normalizeTmuxLayout(parsed)
+		default:
+			return nil, fmt.Errorf("unknown config key %q", key)
 		}
-		sort.Strings(keys)
-		return nil, fmt.Errorf("unknown config keys: %s", strings.Join(keys, ", "))
-	}
-
-	config := raw.toMap()
-	if layout, ok := config["tmux_layout"]; ok {
-		config["tmux_layout"] = normalizeTmuxLayout(layout)
 	}
 	return config, nil
+}
+
+func parseStringValue(key string, value any) (string, error) {
+	parsed, ok := value.(string)
+	if !ok {
+		return "", fmt.Errorf("config key %q must be a string", key)
+	}
+	return parsed, nil
+}
+
+func parseStringOrArrayValue(key string, value any, joiner string) (string, error) {
+	if parsed, ok := value.(string); ok {
+		return parsed, nil
+	}
+	switch typed := value.(type) {
+	case []string:
+		return strings.Join(typed, joiner), nil
+	case []any:
+		result := make([]string, 0, len(typed))
+		for _, item := range typed {
+			str, ok := item.(string)
+			if !ok {
+				return "", fmt.Errorf("config key %q array values must be strings", key)
+			}
+			result = append(result, str)
+		}
+		return strings.Join(result, joiner), nil
+	default:
+		return "", fmt.Errorf("config key %q must be a string or array of strings", key)
+	}
 }
 
 // normalizeTmuxLayout normalizes separators in tmux_layout values.

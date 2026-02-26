@@ -2,7 +2,6 @@ package commands
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -10,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/gkarolyi/mxt/internal/config"
 	"github.com/gkarolyi/mxt/internal/ui"
+	"github.com/pelletier/go-toml/v2"
 	"golang.org/x/term"
 )
 
@@ -25,15 +24,15 @@ const logo = `                       _
 `
 
 // InitCommand implements the init command
-func InitCommand(local bool, reinit bool) error {
+func InitCommand(local bool, reinit bool, importLegacy bool) error {
 	// Display logo
 	fmt.Print(logo)
 	fmt.Println()
 
 	if local {
-		return initProjectConfig(reinit)
+		return initProjectConfig(reinit, importLegacy)
 	}
-	return initGlobalConfig(reinit)
+	return initGlobalConfig(reinit, importLegacy)
 }
 
 func shouldOverwriteConfig(reader *bufio.Reader, writer io.Writer, isTerminal bool, reinit bool) (bool, error) {
@@ -51,8 +50,53 @@ func shouldOverwriteConfig(reader *bufio.Reader, writer io.Writer, isTerminal bo
 	return response == "y" || response == "Y", nil
 }
 
-func initGlobalConfig(reinit bool) error {
+func importLegacyConfig(legacyPath string, targetPath string, reinit bool) (string, error) {
+	if _, err := os.Stat(legacyPath); err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("legacy config not found at %s", legacyPath)
+		}
+		return "", fmt.Errorf("failed to read legacy config at %s: %w", legacyPath, err)
+	}
+	if _, err := os.Stat(targetPath); err == nil {
+		if !reinit {
+			return "", fmt.Errorf("config already exists at %s (use --reinit to overwrite)", targetPath)
+		}
+	} else if !os.IsNotExist(err) {
+		return "", fmt.Errorf("failed to check config at %s: %w", targetPath, err)
+	}
+	content, err := os.ReadFile(legacyPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read legacy config at %s: %w", legacyPath, err)
+	}
+	parsed, err := config.ParseLegacyConfig(strings.NewReader(string(content)))
+	if err != nil {
+		return "", fmt.Errorf("failed to parse legacy config at %s: %w", legacyPath, err)
+	}
+	encoded, err := config.EncodeConfig(parsed)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode TOML config: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		return "", fmt.Errorf("failed to create config directory: %w", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(encoded), 0o644); err != nil {
+		return "", fmt.Errorf("failed to write config file: %w", err)
+	}
+	return encoded, nil
+}
+
+func initGlobalConfig(reinit bool, importLegacy bool) error {
 	configPath := config.GetGlobalConfigPath()
+	if importLegacy {
+		content, err := importLegacyConfig(config.GetLegacyGlobalConfigPath(), configPath, reinit)
+		if err != nil {
+			return err
+		}
+		ui.Success(fmt.Sprintf("Imported config written to %s", configPath))
+		fmt.Println()
+		fmt.Print(content)
+		return nil
+	}
 	configDir := filepath.Dir(configPath)
 	reader := bufio.NewReader(os.Stdin)
 
@@ -157,13 +201,23 @@ func initGlobalConfig(reinit bool) error {
 	return nil
 }
 
-func initProjectConfig(reinit bool) error {
+func initProjectConfig(reinit bool, importLegacy bool) error {
 	gitRoot, err := config.FindGitRoot(".")
 	if err != nil {
 		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo.")
 	}
 
-	configPath := filepath.Join(gitRoot, ".mxt")
+	configPath := config.GetProjectConfigPath(gitRoot)
+	if importLegacy {
+		content, err := importLegacyConfig(config.GetLegacyProjectConfigPath(gitRoot), configPath, reinit)
+		if err != nil {
+			return err
+		}
+		ui.Success(fmt.Sprintf("Imported project config written to %s", configPath))
+		fmt.Println()
+		fmt.Print(content)
+		return nil
+	}
 	reader := bufio.NewReader(os.Stdin)
 
 	// Check if config already exists
@@ -343,12 +397,11 @@ func generateProjectConfigContent(copyFiles, preSessionCmd, tmuxLayout string) (
 }
 
 func formatTomlValue(value string) (string, error) {
-	var buf bytes.Buffer
-	encoder := toml.NewEncoder(&buf)
-	if err := encoder.Encode(map[string]string{"value": value}); err != nil {
+	data, err := toml.Marshal(map[string]string{"value": value})
+	if err != nil {
 		return "", err
 	}
-	line := strings.TrimSpace(buf.String())
+	line := strings.TrimSpace(string(data))
 	parts := strings.SplitN(line, "=", 2)
 	if len(parts) != 2 {
 		return "", fmt.Errorf("unexpected TOML encoding for value: %q", line)

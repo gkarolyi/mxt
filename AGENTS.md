@@ -23,7 +23,7 @@ Use del instead of rm.
 2. **Command handlers** (`internal/commands`)
    - `init`, `new`, `list`, `delete`, `sessions`, `config`, `help`, `version`.
 3. **Configuration system** (`internal/config`)
-   - Parses global (`~/.mxt/config`) and project-local (`.mxt`) configs.
+   - Parses global (`~/.mxt/config.toml`) and project-local (`.mxt.toml`) configs.
    - Expands `~`, validates keys, and merges defaults.
 4. **Git integration** (`internal/git`)
    - Repo root detection, branch lookup, worktree path helpers.
@@ -106,15 +106,15 @@ Custom layouts are parsed into windows/panes and created via tmux. The first pan
 
 ## Config File Locations
 
-- **Global**: `~/.mxt/config` (or `$MXT_CONFIG_DIR/config`)
-- **Project**: `.mxt` in repo root
+- **Global**: `~/.mxt/config.toml` (or `$MXT_CONFIG_DIR/config.toml`)
+- **Project**: `.mxt.toml` in repo root
 - **Priority**: Project config overrides global config
-- **Init**: `mxt init` creates global, `mxt init --local` creates project
+- **Init**: `mxt init` creates global, `mxt init --local` creates project, `mxt init --import` converts legacy configs
 
 Both use the same TOML format with the same keys:
 - `worktree_dir`: Base directory for worktrees
 - `terminal`: Which terminal app to use
-- `copy_files`: Comma-separated list of files/globs to copy
+- `copy_files`: Comma-separated list or TOML array of files/globs to copy
 - `pre_session_cmd`: Command to run after worktree setup
 - `tmux_layout`: Custom window/pane layout
 

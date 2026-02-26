@@ -146,7 +146,7 @@ func TestExpandTilde(t *testing.T) {
 func TestLoadConfigFile(t *testing.T) {
 	// Create a temporary config file
 	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config")
+	configPath := filepath.Join(tmpDir, "config.toml")
 
 	content := `worktree_dir = "~/test-worktrees"
 terminal = "iterm2"
@@ -177,7 +177,7 @@ copy_files = ".env,.env.local"
 
 // TestLoadConfigFileNotExists tests loading non-existent file
 func TestLoadConfigFileNotExists(t *testing.T) {
-	config, err := LoadConfigFile("/nonexistent/path/config")
+	config, err := LoadConfigFile("/nonexistent/path/config.toml")
 	if err != nil {
 		t.Fatalf("LoadConfigFile() should not error for missing file, got: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestLoadConfig(t *testing.T) {
 	if err := os.MkdirAll(globalConfigDir, 0o755); err != nil {
 		t.Fatalf("Failed to create global config dir: %v", err)
 	}
-	globalConfigPath := filepath.Join(globalConfigDir, "config")
+	globalConfigPath := filepath.Join(globalConfigDir, "config.toml")
 	globalContent := `worktree_dir = "~/global-worktrees"
 terminal = "terminal"
 copy_files = ".env"
@@ -243,7 +243,7 @@ copy_files = ".env"
 	}
 
 	// Create project config
-	projectConfigPath := filepath.Join(tmpRepo, ".mxt")
+	projectConfigPath := filepath.Join(tmpRepo, ".mxt.toml")
 	projectContent := `terminal = "iterm2"
 copy_files = ".env,.env.local,CLAUDE.md"
 `

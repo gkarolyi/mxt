@@ -67,7 +67,7 @@ Replace `/path/to/mxt` with the actual path to your mxt checkout or install loca
 ## Quick Start
 
 ```bash
-# 1. Run interactive setup (creates ~/.mxt/config)
+# 1. Run interactive setup (creates ~/.mxt/config.toml)
 mxt init
 
 # 2. Navigate to your repo
@@ -126,7 +126,7 @@ Each worktree is a fully independent working directory — separate branch, sepa
 
 ### `mxt init`
 
-Interactive setup. Creates `~/.mxt/config` (TOML) where you specify:
+Interactive setup. Creates `~/.mxt/config.toml` (TOML) where you specify:
 
 - **Worktree base directory** — where all worktrees live (e.g. `~/worktrees`)
 - **Terminal app** — `terminal` (Terminal.app), `iterm2`, `ghostty`, or `current`
@@ -137,8 +137,11 @@ $ mxt init
 Worktree base directory [~/worktrees]: ~/worktrees
 Terminal app (terminal/iterm2) [terminal]: iterm2
 Files to copy: .env,.env.local,.claude/settings.json
-✓ Config written to ~/.mxt/config
+✓ Config written to ~/.mxt/config.toml
 ```
+
+Use `mxt init --import` to convert a legacy `~/.mxt/config` file to TOML without prompts. For project configs, run `mxt init --local --import` to import `.mxt` into `.mxt.toml`.
+
 
 ### `mxt new [branch] [options]`
 
@@ -240,11 +243,8 @@ mxt sessions attach feature-auth agent
 
 ### `mxt config`
 
-Shows both global (`~/.mxt/config`) and project-local (`.mxt`) config files, labeling which one is active. Useful for debugging which settings are in effect. Use `mxt config migrate` to convert legacy key=value configs to TOML.
+Shows both global (`~/.mxt/config.toml`) and project-local (`.mxt.toml`) config files, labeling which one is active. Useful for debugging which settings are in effect. Convert legacy key=value configs with `mxt init --import`.
 
-### `mxt config migrate`
-
-Converts legacy key=value config files to TOML in place (global and project). Safe to run multiple times.
 
 ### `mxt version`
 
@@ -258,7 +258,7 @@ Show all commands and usage. Also available as `mxt -h` or `mxt --help`.
 
 ## Configuration
 
-Config lives at `~/.mxt/config` (override with `MXT_CONFIG_DIR`). It's a TOML file:
+Config lives at `~/.mxt/config.toml` (override with `MXT_CONFIG_DIR`). It's a TOML file:
 
 ```toml
 # mxt configuration (TOML)
@@ -269,12 +269,18 @@ worktree_dir = "~/worktrees"
 # Terminal app: terminal | iterm2 | ghostty | current
 terminal = "iterm2"
 
-# Files to copy from repo root into new worktrees (comma-separated)
+# Files to copy from repo root into new worktrees (string or array)
 # Supports glob patterns
-copy_files = ".env,.env.local,CLAUDE.md,.claude/settings.json"
+copy_files = [".env", ".env.local", "CLAUDE.md", ".claude/settings.json"]
+
+# Command to run before starting tmux
+pre_session_cmd = "bundle install"
+
+# Optional tmux layout (string or array)
+tmux_layout = ["dev:hx|lazygit", "server:bin/server", "agent:"]
 ```
 
-Legacy key=value configs can be converted with `mxt config migrate`.
+Legacy key=value configs can be converted with `mxt init --import`.
 
 ### Config options
 
@@ -282,16 +288,21 @@ Legacy key=value configs can be converted with `mxt config migrate`.
 |-----|---------|-------------|
 | `worktree_dir` | `~/worktrees` | Base directory where worktrees are created. Organized as `<worktree_dir>/<repo>/<branch>/` |
 | `terminal` | `terminal` | Which terminal app to open: `terminal` (Terminal.app), `iterm2`, `ghostty`, or `current` |
-| `copy_files` | *(empty)* | Comma-separated list of files/globs to copy from repo root into new worktrees |
+| `copy_files` | *(empty)* | Comma-separated list or TOML array of files/globs to copy from repo root into new worktrees |
+| `pre_session_cmd` | *(empty)* | Command to run after worktree setup, before tmux session |
+| `tmux_layout` | *(empty)* | Custom tmux window/pane layout (string or array) |
 
 ### Project-local config
 
-You can create a `.mxt` file in your repo root to override global settings on a per-project basis. This is useful for setting project-specific `copy_files`.
+You can create a `.mxt.toml` file in your repo root to override global settings on a per-project basis. This is useful for setting project-specific `copy_files`.
 
 ```bash
 # Interactive setup for the current repo
 mxt init --local
 ```
+
+Use `mxt init --local --import` to convert a legacy `.mxt` file to TOML.
+
 
 The local config file uses the same TOML format. When present, local values override the global config.
 
