@@ -1,6 +1,6 @@
 ---
 id: mux-aofc
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-24T22:33:20Z
@@ -16,3 +16,9 @@ Reimplement muxtree in Go as 'mxt' binary. Goal is 100% feature parity with muxt
 
 All commands (init, config, new, list, delete, sessions, help, version) produce identical output to muxtree. All feature spec tests pass. Original muxtree script can be safely removed.
 
+
+## Notes
+
+**2026-02-26T02:58:44Z**
+
+Go reimplementation complete with parity verified; legacy muxtree artifacts removed; README and config naming updated; final validation closed.
