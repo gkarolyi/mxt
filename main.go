@@ -16,13 +16,14 @@ const version = "1.1.0"
 var rootCmd = &cobra.Command{
 	Use:   "mxt",
 	Short: "Tmux Worktree Session Manager",
-	Long: `                       _
-  _ __ ___  _   ___  _| |_ _ __ ___  ___
- | '_ ` + "`" + ` _ \| | | \ \/ / __| '__/ _ \/ _ \
- | | | | | | |_| |>  <| |_| | |  __/  __/
- |_| |_| |_|\__,_/_/\_\__|_|  \___|\___|
+	Long: `███╗   ███╗██╗  ██╗████████╗
+████╗ ████║╚██╗██╔╝╚══██╔══╝
+██╔████╔██║ ╚███╔╝    ██║
+██║╚██╔╝██║ ██╔██╗    ██║
+██║ ╚═╝ ██║██╔╝ ██╗   ██║
+╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝
 
-  Tmux Worktree Session Manager v` + version + `
+Tmux Worktree Session Manager v` + version + `
 
 A tool for managing git worktrees paired with tmux sessions.`,
 	SilenceUsage:  true,

@@ -15,12 +15,13 @@ import (
 	"golang.org/x/term"
 )
 
-const logo = `                       _
-  _ __ ___  _   ___  _| |_ _ __ ___  ___
- | '_ ` + "`" + ` _ \| | | \ \/ / __| '__/ _ \/ _ \
- | | | | | | |_| |>  <| |_| | |  __/  __/
- |_| |_| |_|\__,_/_/\_\\__|_|  \___|\___|
-  Tmux Worktree Session Manager v1.0.0
+const logo = `███╗   ███╗██╗  ██╗████████╗
+████╗ ████║╚██╗██╔╝╚══██╔══╝
+██╔████╔██║ ╚███╔╝    ██║
+██║╚██╔╝██║ ██╔██╗    ██║
+██║ ╚═╝ ██║██╔╝ ██╗   ██║
+╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝
+  Tmux Worktree Session Manager v1.1.0
 `
 
 // InitCommand implements the init command

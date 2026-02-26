@@ -98,10 +98,11 @@ func HelpCommand(version string) {
 }
 
 func printLogo(version string) {
-	fmt.Println("                       _")
-	fmt.Println("  _ __ ___  _   ___  _| |_ _ __ ___  ___")
-	fmt.Println(" | '_ ` _ \\| | | \\ \\/ / __| '__/ _ \\/ _ \\")
-	fmt.Println(" | | | | | | |_| |>  <| |_| | |  __/  __/")
-	fmt.Println(" |_| |_| |_|\\__,_/_/\\_\\\\__|_|  \\___|\\___|")
+	fmt.Println("███╗   ███╗██╗  ██╗████████╗")
+	fmt.Println("████╗ ████║╚██╗██╔╝╚══██╔══╝")
+	fmt.Println("██╔████╔██║ ╚███╔╝    ██║")
+	fmt.Println("██║╚██╔╝██║ ██╔██╗    ██║")
+	fmt.Println("██║ ╚═╝ ██║██╔╝ ██╗   ██║")
+	fmt.Println("╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝")
 	fmt.Println(ui.DimText(fmt.Sprintf("  Tmux Worktree Session Manager v%s", version)))
 }
