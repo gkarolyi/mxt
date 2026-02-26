@@ -1,9 +1,10 @@
 ```
-M   M  X   X  TTTTT
-MM MM   X X     T
-M M M    X      T
-M   M   X X     T
-M   M  X   X    T
+███╗   ███╗██╗  ██╗████████╗
+████╗ ████║╚██╗██╔╝╚══██╔══╝
+██╔████╔██║ ╚███╔╝    ██║
+██║╚██╔╝██║ ██╔██╗    ██║
+██║ ╚═╝ ██║██╔╝ ██╗   ██║
+╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝
 ```
 
 **Tmux Worktree Session Manager**
@@ -11,6 +12,10 @@ M   M  X   X    T
 A lightweight CLI for spinning up isolated git worktrees paired with tmux sessions, purpose-built for running parallel [Claude Code](https://code.claude.com/docs) or [Codex](https://openai.com/codex/) sessions on macOS.
 
 Each `mxt new` call gives you a fresh branch in its own directory with your config files copied in and a tmux session with two windows ready to go — one for viewing code and running your app, one for your AI coding agent. Switch between them with `Ctrl-b n` / `Ctrl-b p`.
+
+## Acknowledgments
+
+This project is an adaptation of the original [muxtree](https://github.com/b-d055/muxtree) tool. Thanks to the muxtree project for the inspiration and foundation; this version is tailored to my own workflows and preferences.
 
 ---
 
