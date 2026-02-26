@@ -1,6 +1,6 @@
 ---
 id: mxt-k4nn
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-26T03:10:50Z
@@ -30,3 +30,8 @@ Add --reinit to mxt init to overwrite existing config without prompting.
 
 ## Testing
 - Add tests around overwrite decision logic (existing vs reinit).
+## Notes
+
+**2026-02-26T04:01:58Z**
+
+Added --reinit flag, overwrite helper with tests, updated help and completions.

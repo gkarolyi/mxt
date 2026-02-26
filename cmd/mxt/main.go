@@ -46,12 +46,13 @@ var versionCmd = &cobra.Command{
 }
 
 var initCmd = &cobra.Command{
-	Use:   "init [--local]",
+	Use:   "init [--local] [--reinit]",
 	Short: "Set up configuration",
 	Long:  "Create global config (~/.mxt/config) or project config (.mxt in repo root)",
 	Run: func(cmd *cobra.Command, args []string) {
 		local, _ := cmd.Flags().GetBool("local")
-		if err := commands.InitCommand(local); err != nil {
+		reinit, _ := cmd.Flags().GetBool("reinit")
+		if err := commands.InitCommand(local, reinit); err != nil {
 			ui.Error(err.Error())
 			os.Exit(1)
 		}
@@ -200,6 +201,7 @@ var helpCmd = &cobra.Command{
 func init() {
 	// Add flags for init command
 	initCmd.Flags().BoolP("local", "l", false, "Create project config (.mxt in repo root)")
+	initCmd.Flags().Bool("reinit", false, "Overwrite existing config without prompting")
 
 	// Add flags for new command
 	newCmd.Flags().String("from", "", "Base branch (default: main/master)")

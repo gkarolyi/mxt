@@ -87,7 +87,8 @@ _mxt() {
             case "$cmd" in
                 init)
                     _arguments \
-                        '(-l --local)'{-l,--local}'[Create project-local config]'
+                        '(-l --local)'{-l,--local}'[Create project-local config]' \
+                        '--reinit[Overwrite existing config without prompting]'
                     ;;
                 config|list|ls|help|version)
                     ;;

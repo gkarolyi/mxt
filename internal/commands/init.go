@@ -3,6 +3,7 @@ package commands
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,18 +23,33 @@ const logo = `                       _
 `
 
 // InitCommand implements the init command
-func InitCommand(local bool) error {
+func InitCommand(local bool, reinit bool) error {
 	// Display logo
 	fmt.Print(logo)
 	fmt.Println()
 
 	if local {
-		return initProjectConfig()
+		return initProjectConfig(reinit)
 	}
-	return initGlobalConfig()
+	return initGlobalConfig(reinit)
 }
 
-func initGlobalConfig() error {
+func shouldOverwriteConfig(reader *bufio.Reader, writer io.Writer, isTerminal bool, reinit bool) (bool, error) {
+	if reinit {
+		return true, nil
+	}
+	if isTerminal {
+		fmt.Fprint(writer, "Overwrite? (y/N) ")
+	}
+	response, err := reader.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return false, err
+	}
+	response = strings.TrimSpace(response)
+	return response == "y" || response == "Y", nil
+}
+
+func initGlobalConfig(reinit bool) error {
 	configPath := config.GetGlobalConfigPath()
 	configDir := filepath.Dir(configPath)
 	reader := bufio.NewReader(os.Stdin)
@@ -45,12 +61,11 @@ func initGlobalConfig() error {
 		content, _ := os.ReadFile(configPath)
 		fmt.Println(string(content))
 		fmt.Println()
-		if term.IsTerminal(int(os.Stdin.Fd())) {
-			fmt.Print("Overwrite? (y/N) ")
+		shouldOverwrite, err := shouldOverwriteConfig(reader, os.Stdout, term.IsTerminal(int(os.Stdin.Fd())), reinit)
+		if err != nil {
+			return err
 		}
-		response, _ := reader.ReadString('\n')
-		response = strings.TrimSpace(response)
-		if response != "y" && response != "Y" {
+		if !shouldOverwrite {
 			return nil
 		}
 		fmt.Println()
@@ -137,7 +152,7 @@ func initGlobalConfig() error {
 	return nil
 }
 
-func initProjectConfig() error {
+func initProjectConfig(reinit bool) error {
 	gitRoot, err := config.FindGitRoot(".")
 	if err != nil {
 		return fmt.Errorf("Not inside a git repository. Run mxt from within your repo.")
@@ -153,12 +168,11 @@ func initProjectConfig() error {
 		content, _ := os.ReadFile(configPath)
 		fmt.Println(string(content))
 		fmt.Println()
-		if term.IsTerminal(int(os.Stdin.Fd())) {
-			fmt.Print("Overwrite? (y/N) ")
+		shouldOverwrite, err := shouldOverwriteConfig(reader, os.Stdout, term.IsTerminal(int(os.Stdin.Fd())), reinit)
+		if err != nil {
+			return err
 		}
-		response, _ := reader.ReadString('\n')
-		response = strings.TrimSpace(response)
-		if response != "y" && response != "Y" {
+		if !shouldOverwrite {
 			return nil
 		}
 		fmt.Println()

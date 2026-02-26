@@ -61,7 +61,7 @@ _mxt() {
 
     case "$cmd" in
         init)
-            COMPREPLY=($(compgen -W "--local -l" -- "$cur"))
+            COMPREPLY=($(compgen -W "--local -l --reinit" -- "$cur"))
             ;;
         config|list|ls|help|version)
             # No further completions
