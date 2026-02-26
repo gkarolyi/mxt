@@ -10,25 +10,28 @@
 
 A lightweight CLI for spinning up isolated git worktrees paired with tmux sessions, purpose-built for running parallel [Claude Code](https://code.claude.com/docs) or [Codex](https://openai.com/codex/) sessions on macOS.
 
-Each `muxtree new` call gives you a fresh branch in its own directory with your config files copied in and a tmux session with two windows ready to go — one for viewing code and running your app, one for your AI coding agent. Switch between them with `Ctrl-b n` / `Ctrl-b p`.
+Each `mxt new` call gives you a fresh branch in its own directory with your config files copied in and a tmux session with two windows ready to go — one for viewing code and running your app, one for your AI coding agent. Switch between them with `Ctrl-b n` / `Ctrl-b p`.
 
 ---
 
 ## Install
 
 ```bash
-# Copy the script somewhere on your PATH
-cp muxtree /usr/local/bin/muxtree
-chmod +x /usr/local/bin/muxtree
+# Build the binary
+go build -o mxt ./cmd/mxt
+
+# Copy it somewhere on your PATH
+cp mxt /usr/local/bin/mxt
 
 # Or with Homebrew's default bin path
-cp muxtree ~/.local/bin/muxtree
+cp mxt ~/.local/bin/mxt
 ```
 
 ### Prerequisites
 
 - **git** (with worktree support — any modern version)
 - **tmux** (`brew install tmux`)
+- **Go** (1.24+; required to build mxt from source)
 - **macOS** with Terminal.app or iTerm2
 
 ### Shell Completion
@@ -38,16 +41,16 @@ Tab completion is available for bash and zsh, providing completion for commands,
 **Bash** — requires [`bash-completion`](https://github.com/scop/bash-completion) (`brew install bash-completion@2`). Add to `~/.bashrc` or `~/.bash_profile`:
 
 ```bash
-source /path/to/muxtree/completions/muxtree.bash
+source /path/to/mxt/completions/mxt.bash
 ```
 
 **Zsh** — add to `~/.zshrc`:
 
 ```zsh
-source /path/to/muxtree/completions/muxtree.zsh
+source /path/to/mxt/completions/mxt.zsh
 ```
 
-Replace `/path/to/muxtree` with the actual path to your muxtree checkout or install location.
+Replace `/path/to/mxt` with the actual path to your mxt checkout or install location.
 
 ---
 
@@ -55,13 +58,13 @@ Replace `/path/to/muxtree` with the actual path to your muxtree checkout or inst
 
 ```bash
 # 1. Run interactive setup (creates ~/.muxtree/config)
-muxtree init
+mxt init
 
 # 2. Navigate to your repo
 cd ~/projects/my-app
 
 # 3. Create a new worktree + tmux session
-muxtree new feature-auth
+mxt new feature-auth
 
 # 4. A terminal window opens with a tmux session containing two windows:
 #    • dev    ← run your app, browse code
@@ -79,7 +82,7 @@ That's it. You're working in an isolated branch with your `.env` and config file
   Your repo (~/projects/my-app)
   ├── main branch (your normal working copy)
   │
-  │  muxtree new feature-auth --run claude
+  │  mxt new feature-auth --run claude
   │  ┌──────────────────────────────────────────────────────────┐
   │  │  1. git worktree add                                     │
   │  │     ~/worktrees/my-app/feature-auth/  (branch: feature-auth)
@@ -97,11 +100,11 @@ That's it. You're working in an isolated branch with your `.env` and config file
   │  │  4. Open terminal window attached to session             │
   │  └──────────────────────────────────────────────────────────┘
   │
-  │  muxtree new fix-bug
+  │  mxt new fix-bug
   │  └─► ~/worktrees/my-app/fix-bug/  →  tmux: my-app_fix-bug
   │
-  │  muxtree list         ← see all worktrees + diff stats + session status
-  │  muxtree delete fix-bug  ← kills session, removes worktree + branch
+  │  mxt list         ← see all worktrees + diff stats + session status
+  │  mxt delete fix-bug  ← kills session, removes worktree + branch
 ```
 
 Each worktree is a fully independent working directory — separate branch, separate files, separate tmux session. You can run multiple AI agents in parallel without them stepping on each other.
@@ -110,7 +113,7 @@ Each worktree is a fully independent working directory — separate branch, sepa
 
 ## Commands
 
-### `muxtree init`
+### `mxt init`
 
 Interactive setup. Creates `~/.muxtree/config` where you specify:
 
@@ -119,32 +122,32 @@ Interactive setup. Creates `~/.muxtree/config` where you specify:
 - **Files to copy** — comma-separated list of files to copy from your repo root into each new worktree (e.g. `.env,.env.local,CLAUDE.md`)
 
 ```bash
-$ muxtree init
+$ mxt init
 Worktree base directory [~/worktrees]: ~/worktrees
 Terminal app (terminal/iterm2) [terminal]: iterm2
 Files to copy: .env,.env.local,.claude/settings.json
 ✓ Config written to ~/.muxtree/config
 ```
 
-### `muxtree new <branch> [options]`
+### `mxt new <branch> [options]`
 
 Creates a worktree, copies config files, and launches a tmux session with two windows (dev + agent) in a new terminal.
 
 ```bash
 # Branch from main (auto-detected)
-muxtree new feature-auth
+mxt new feature-auth
 
 # Branch from a specific base
-muxtree new fix-bug --from develop
+mxt new fix-bug --from develop
 
 # Auto-launch Claude Code in the claude session
-muxtree new feature-ai --run claude
+mxt new feature-ai --run claude
 
 # Auto-launch Codex instead
-muxtree new feature-ai --run codex
+mxt new feature-ai --run codex
 
 # Create worktree + session without opening a terminal window
-muxtree new fix-bug --bg
+mxt new fix-bug --bg
 ```
 
 **What happens:**
@@ -154,7 +157,7 @@ muxtree new fix-bug --bg
 3. Creates a detached tmux session with two windows (dev + agent)
 4. Opens the session in a new terminal window
 
-### `muxtree list`
+### `mxt list`
 
 Shows all managed worktrees with diff stats and session status.
 
@@ -175,12 +178,12 @@ Worktrees for my-app
 - `○` = tmux session is not running
 - Diff stats show combined staged + unstaged changes vs HEAD
 
-### `muxtree delete <branch> [--force]`
+### `mxt delete <branch> [--force]`
 
 Removes a worktree, kills its tmux sessions, and deletes the local branch.
 
 ```bash
-$ muxtree delete feature-auth
+$ mxt delete feature-auth
 
   Branch:    feature-auth
   Path:      ~/worktrees/my-app/feature-auth
@@ -195,41 +198,41 @@ Are you sure? (y/N) y
 
 Use `--force` or `-f` to skip confirmation.
 
-### `muxtree sessions <action> <branch> [options]`
+### `mxt sessions <action> <branch> [options]`
 
 Manage the tmux session independently of the worktree.
 
 ```bash
 # Close session for a branch
-muxtree sessions close feature-auth
+mxt sessions close feature-auth
 
 # Reopen it (creates new terminal window)
-muxtree sessions open feature-auth
+mxt sessions open feature-auth
 
 # Reopen with claude auto-running in the agent window
-muxtree sessions open feature-auth --run claude
+mxt sessions open feature-auth --run claude
 
 # Close + reopen in one step
-muxtree sessions relaunch feature-auth --run codex
+mxt sessions relaunch feature-auth --run codex
 
 # Attach to session in your current terminal
-muxtree sessions attach feature-auth
+mxt sessions attach feature-auth
 
 # Attach with a specific window selected
-muxtree sessions attach feature-auth agent
+mxt sessions attach feature-auth agent
 ```
 
-### `muxtree config`
+### `mxt config`
 
 Shows both global (`~/.muxtree/config`) and project-local (`.muxtree`) config files, labeling which one is active. Useful for debugging which settings are in effect.
 
-### `muxtree version`
+### `mxt version`
 
-Print the version number. Also available as `muxtree -v` or `muxtree --version`.
+Print the version number. Also available as `mxt -v` or `mxt --version`.
 
-### `muxtree help`
+### `mxt help`
 
-Show all commands and usage. Also available as `muxtree -h` or `muxtree --help`.
+Show all commands and usage. Also available as `mxt -h` or `mxt --help`.
 
 ---
 
@@ -238,7 +241,7 @@ Show all commands and usage. Also available as `muxtree -h` or `muxtree --help`.
 Config lives at `~/.muxtree/config` (override with `MUXTREE_CONFIG_DIR`). It's a plain key=value file:
 
 ```ini
-# muxtree configuration
+# mxt configuration
 
 # Base directory for worktrees
 worktree_dir=~/worktrees
@@ -265,7 +268,7 @@ You can create a `.muxtree` file in your repo root to override global settings o
 
 ```bash
 # Interactive setup for the current repo
-muxtree init --local
+mxt init --local
 ```
 
 The local config file uses the same key=value format. When present, local values override the global config.
@@ -289,10 +292,10 @@ copy_files=.env*,CLAUDE.md,config/*.local.json
 
 | Command | Aliases |
 |---------|---------|
-| `muxtree list` | `muxtree ls` |
-| `muxtree delete` | `muxtree rm` |
-| `muxtree sessions` | `muxtree s` |
-| `muxtree help` | `muxtree -h`, `muxtree --help` |
+| `mxt list` | `mxt ls` |
+| `mxt delete` | `mxt rm` |
+| `mxt sessions` | `mxt s` |
+| `mxt help` | `mxt -h`, `mxt --help` |
 | `sessions open` | `sessions launch`, `sessions start` |
 | `sessions close` | `sessions kill`, `sessions stop` |
 | `sessions relaunch` | `sessions restart` |
@@ -339,7 +342,7 @@ Branch names are sanitized in two ways:
 ```bash
 # Start your day — create a fresh workspace
 cd ~/projects/my-app
-muxtree new feature-user-profiles --run claude
+mxt new feature-user-profiles --run claude
 
 # A terminal window opens with a tmux session:
 #   dev window:    cd'd into the worktree, run your dev server
@@ -347,23 +350,23 @@ muxtree new feature-user-profiles --run claude
 # Switch between them with Ctrl-b n / Ctrl-b p
 
 # Check on all your active branches
-muxtree list
+mxt list
 
 # Done with a feature — clean up
-muxtree delete feature-user-profiles
+mxt delete feature-user-profiles
 
 # Need to step away but keep the worktree? Just close the session
-muxtree sessions close feature-user-profiles
+mxt sessions close feature-user-profiles
 
 # Come back later and relaunch
-muxtree sessions open feature-user-profiles --run claude
+mxt sessions open feature-user-profiles --run claude
 ```
 
 ---
 
 ## Security
 
-muxtree is designed with security in mind:
+mxt is designed with security in mind:
 
 - **No shell execution of config** — config is parsed as plain key=value pairs, not sourced. Values containing shell metacharacters (`$`, `` ` ``, `;`, `|`, `&`) are ignored with a warning.
 - **AppleScript injection prevention** — session names are escaped before embedding in osascript.
@@ -377,7 +380,7 @@ muxtree is designed with security in mind:
 
 ```bash
 # Remove the binary
-rm /usr/local/bin/muxtree
+rm /usr/local/bin/mxt
 
 # Remove config
 rm -rf ~/.muxtree

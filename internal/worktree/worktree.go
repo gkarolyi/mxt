@@ -72,6 +72,7 @@ func CopyFiles(sourceDir, destDir, copyFiles string) error {
 		}
 
 		// Expand glob pattern relative to source directory
+		hasGlob := strings.ContainsAny(pattern, "*?[")
 		fullPattern := filepath.Join(sourceDir, pattern)
 		matches, err := filepath.Glob(fullPattern)
 		if err != nil {
@@ -80,7 +81,9 @@ func CopyFiles(sourceDir, destDir, copyFiles string) error {
 		}
 
 		if len(matches) == 0 {
-			ui.Warn(fmt.Sprintf("  Not found: %s", ui.DimText(pattern)))
+			if hasGlob {
+				ui.Warn(fmt.Sprintf("  Not found: %s", ui.DimText(pattern)))
+			}
 			continue
 		}
 

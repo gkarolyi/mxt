@@ -91,7 +91,7 @@ tmux_layout=[
 
 ### Visual Result
 
-When you run `muxtree new feature-auth`, you get:
+When you run `mxt new feature-auth`, you get:
 
 ```
 ┌────────────────────────────────────────────────────────────┐

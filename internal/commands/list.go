@@ -63,6 +63,7 @@ func ListCommand() error {
 	// Step 6: Handle no worktrees case
 	if len(worktrees) == 0 {
 		ui.Info(fmt.Sprintf("No managed worktrees found. Use %s to create one.", ui.BoldText("muxtree new <branch>")))
+		fmt.Println()
 		return nil
 	}
 

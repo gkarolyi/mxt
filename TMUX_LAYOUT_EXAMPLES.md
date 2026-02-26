@@ -99,7 +99,7 @@ tmux_layout=[
 
 ## Default Layout (if not configured)
 
-If `tmux_layout` is not set, muxtree creates:
+If `tmux_layout` is not set, mxt creates:
 - Window "dev": 1 pane (shell)
 - Window "agent": 1 pane (shell, or runs `--run` command)
 
@@ -108,7 +108,7 @@ If `tmux_layout` is not set, muxtree creates:
 The `--run` flag still works! If you have an "agent" window in your layout:
 
 ```bash
-muxtree new feature-auth --run claude
+mxt new feature-auth --run claude
 ```
 
 This will send the `claude` command to the first pane of the "agent" window.

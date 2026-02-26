@@ -69,6 +69,8 @@ func initGlobalConfig() error {
 	worktreeDir := defaults["worktree_dir"]
 	terminal := defaults["terminal"]
 
+	fmt.Println()
+
 	if term.IsTerminal(int(os.Stdin.Fd())) {
 		fmt.Printf("Worktree base directory [%s]: ", worktreeDir)
 	}

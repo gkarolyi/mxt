@@ -151,7 +151,6 @@ Preparing worktree (new branch 'feature-missing')
 HEAD is now at abc1234 Initial commit
 ✓ Worktree created (branch feature-missing from master)
 ▸ Copying config files...
-⚠   Not found: missing.txt
 ✓   Copied README.md
 ▸ Creating tmux session...
 ✓   Created session repo-name_feature-missing (windows: dev, agent)

@@ -1,6 +1,6 @@
 ---
 id: mux-kpvk
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-24T22:34:35Z
@@ -13,3 +13,9 @@ parent: mux-jto1
 
 Generate zsh completion matching muxtree behavior
 
+
+## Notes
+
+**2026-02-26T00:15:12Z**
+
+Added completions/mxt.zsh with mxt command and option completions.
