@@ -1,6 +1,6 @@
 ---
 id: mxt-g21p
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-02-26T03:10:41Z
@@ -39,3 +39,8 @@ When sessions open/close/etc are run without a branch argument, open an interact
 ## Testing
 - Add unit tests for list filtering (open vs close/attach) and for "no candidates" messaging.
 - If selector logic is abstracted, add tests for cancel handling and non-tty behavior.
+## Notes
+
+**2026-02-26T04:55:58Z**
+
+Implemented fzf-based interactive branch selection for sessions commands with TTY checks, usage/help updates, and README note. Added selection/filtering tests. Tests: go test ./internal/commands
