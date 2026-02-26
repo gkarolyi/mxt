@@ -35,3 +35,7 @@ Fixed config no-config output to match muxtree (warn + exit 1), adjusted custom 
 **2026-02-26T01:17:12Z**
 
 Refined run_feature_specs.sh prompts: auto-runs interactive commands, shows clearly labeled outputs, logs results, and continues through mismatches.
+
+**2026-02-26T01:46:01Z**
+
+Feature spec runner completed with all PASS (summary log: /var/folders/8w/ht214zm55gs6dsckv8flbnm80000gp/T/mxt-feature-suite.XXXXXX.WJKp8Z5o3H/logs/summary.log). Manual checks for pre-session failure, sessions attach, terminal integration confirmed.
