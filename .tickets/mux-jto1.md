@@ -23,3 +23,7 @@ All feature specs pass. Shell completion works. Documentation complete. Ready fo
 **2026-02-26T00:16:46Z**
 
 Completed parity fixes (init/list spacing, glob-only missing file warnings), added mxt bash/zsh completions, updated README/visual docs. Harness runs: help, version, init, config, new (basic + --run), list, delete, sessions open/close/relaunch. Sessions attach + terminal integration still need manual verification; release prep (mux-kdel) still open.
+
+**2026-02-26T00:33:12Z**
+
+Created test/run_feature_specs.sh to automate harness runs and prompt for manual checks (sessions attach, terminal integration, pre-session failure).
