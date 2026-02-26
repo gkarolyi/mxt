@@ -350,6 +350,7 @@ manual_compare() {
   local mxt_cmd="$3"
   local instructions="$4"
   local cleanup_cmd="${5:-}"
+  local input_text="${6:-}"
   local safe_label
   safe_label="$(sanitize_label "$label")"
   local log_file="$LOG_DIR/${safe_label}.log"
@@ -363,14 +364,22 @@ manual_compare() {
   echo "$instructions"
 
   set +e
-  eval "$muxtree_cmd" >"$muxtree_out" 2>"$muxtree_err"
+  if [[ -n "$input_text" ]]; then
+    printf "%s" "$input_text" | bash -c "$muxtree_cmd" >"$muxtree_out" 2>"$muxtree_err"
+  else
+    bash -c "$muxtree_cmd" >"$muxtree_out" 2>"$muxtree_err"
+  fi
   local muxtree_code=$?
 
   if [[ -n "$cleanup_cmd" ]]; then
     eval "$cleanup_cmd"
   fi
 
-  eval "$mxt_cmd" >"$mxt_out" 2>"$mxt_err"
+  if [[ -n "$input_text" ]]; then
+    printf "%s" "$input_text" | bash -c "$mxt_cmd" >"$mxt_out" 2>"$mxt_err"
+  else
+    bash -c "$mxt_cmd" >"$mxt_out" 2>"$mxt_err"
+  fi
   local mxt_code=$?
   set -e
 
@@ -471,9 +480,9 @@ write_config "terminal" "README.md" "false" ""
 manual_compare "pre-session failure" \
   "MUXTREE_CONFIG_DIR=$CONFIG_DIR $MUXTREE_BIN new feature-fail --bg" \
   "MUXTREE_CONFIG_DIR=$CONFIG_DIR $MXT_BIN new feature-fail --bg" \
-  "When prompted, answer 'n' to abort. Compare the warning and abort message outputs, then detach if needed." \
-  "cleanup_branch \"$TEST_REPO\" \"$REPO_NAME\" \"feature-fail\""
-cleanup_branch "$TEST_REPO" "$REPO_NAME" "feature-fail"
+  "Runner answers 'n' to the continue prompt. Compare the warning and abort message outputs." \
+  "cleanup_branch \"$TEST_REPO\" \"$REPO_NAME\" \"feature-fail\"" \
+  $'n\n'
 
 write_config "terminal" "README.md" "" ""
 rm -rf "$WORKTREE_DIR/$REPO_NAME"
@@ -506,7 +515,6 @@ for terminal in terminal iterm2 ghostty current; do
     "MUXTREE_CONFIG_DIR=$CONFIG_DIR $MXT_BIN new terminal-$terminal" \
     "Verify the terminal open/attach behavior and output messages. Close any spawned windows if needed." \
     "cleanup_branch \"$TEST_REPO\" \"$REPO_NAME\" \"terminal-$terminal\""
-  cleanup_branch "$TEST_REPO" "$REPO_NAME" "terminal-$terminal"
 done
 
 popd >/dev/null
